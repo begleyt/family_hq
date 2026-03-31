@@ -74,11 +74,31 @@ export default function DashboardPage() {
 
   const fetchMessages = () => api.get('/messages').then(res => setMessages(res.data));
 
-  const handlePhotoSelect = (e) => {
+  const compressImage = (file, maxWidth = 1600, quality = 0.7) => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxWidth) { h = (h * maxWidth) / w; w = maxWidth; }
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob((blob) => {
+          resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }));
+        }, 'image/jpeg', quality);
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handlePhotoSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
+    // Compress before setting — shrinks 5MB phone photos to ~200-400KB
+    const compressed = await compressImage(file);
+    setPhotoFile(compressed);
+    setPhotoPreview(URL.createObjectURL(compressed));
   };
 
   const clearPhoto = () => {
@@ -327,7 +347,7 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
                         <button onClick={() => toggleComments(msg.id)}
                           className="text-[10px] text-slate-500 hover:text-family-600 flex items-center gap-0.5">
-                          <MessageCircle size={10} /> {msg.comment_count || 0}
+                          <MessageCircle size={10} /> {msg.comment_count > 0 ? msg.comment_count : ''}
                         </button>
                         {isParent && (
                           <>

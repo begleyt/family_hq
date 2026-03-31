@@ -9,11 +9,39 @@ const { roleCheck } = require('../middleware/roleCheck');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }); // 20MB max
-router.use(authMiddleware);
 
 function getImmichConfig() {
   return getDb().prepare('SELECT * FROM immich_config ORDER BY id DESC LIMIT 1').get();
 }
+
+// GET /api/messages/immich-proxy/:assetId/:size - proxy Immich images (NO AUTH - public, asset IDs not guessable)
+router.get('/immich-proxy/:assetId/:size', async (req, res) => {
+  const config = getImmichConfig();
+  if (!config) return res.status(404).send('Not configured');
+
+  const { assetId, size } = req.params;
+  const endpoint = size === 'original' ? 'original' : 'thumbnail';
+  const url = new URL(`/api/assets/${assetId}/${endpoint}`, config.server_url);
+
+  const protocol = url.protocol === 'https:' ? https : http;
+  const proxyReq = protocol.request({
+    hostname: url.hostname,
+    port: url.port,
+    path: url.pathname,
+    method: 'GET',
+    headers: { 'x-api-key': config.api_key },
+    rejectUnauthorized: false,
+  }, (proxyRes) => {
+    res.set('Content-Type', proxyRes.headers['content-type'] || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', () => res.status(500).send('Proxy error'));
+  proxyReq.end();
+});
+
+// All routes below require authentication
+router.use(authMiddleware);
 
 // Upload to Immich API
 async function uploadToImmich(fileBuffer, filename, mimetype) {
@@ -87,31 +115,7 @@ router.get('/', (req, res) => {
   res.json(messages);
 });
 
-// GET /api/messages/immich-proxy/:assetId/:size - proxy Immich images (avoids CORS)
-router.get('/immich-proxy/:assetId/:size', async (req, res) => {
-  const config = getImmichConfig();
-  if (!config) return res.status(404).send('Not configured');
-
-  const { assetId, size } = req.params;
-  const endpoint = size === 'original' ? 'original' : 'thumbnail';
-  const url = new URL(`/api/assets/${assetId}/${endpoint}`, config.server_url);
-
-  const protocol = url.protocol === 'https:' ? https : http;
-  const proxyReq = protocol.request({
-    hostname: url.hostname,
-    port: url.port,
-    path: url.pathname,
-    method: 'GET',
-    headers: { 'x-api-key': config.api_key },
-    rejectUnauthorized: false,
-  }, (proxyRes) => {
-    res.set('Content-Type', proxyRes.headers['content-type'] || 'image/jpeg');
-    res.set('Cache-Control', 'public, max-age=86400');
-    proxyRes.pipe(res);
-  });
-  proxyReq.on('error', () => res.status(500).send('Proxy error'));
-  proxyReq.end();
-});
+// (immich-proxy route defined above, before auth middleware)
 
 // GET /api/messages/:id
 router.get('/:id', (req, res) => {
