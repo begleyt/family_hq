@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { -webkit-tap-highlight-color: transparent; }
+  body { @apply bg-slate-50 text-slate-800 antialiased dark:bg-slate-900 dark:text-slate-100; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-family-500 hover:bg-family-600 text-white font-medium px-4 py-2.5 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2.5 rounded-xl transition-all active:scale-95 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200;
+  }
+  .btn-danger {
+    @apply bg-red-500 hover:bg-red-600 text-white font-medium px-4 py-2.5 rounded-xl transition-all active:scale-95;
+  }
+  .btn-success {
+    @apply bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-2.5 rounded-xl transition-all active:scale-95;
+  }
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-slate-100 p-4 dark:bg-slate-800 dark:border-slate-700;
+  }
+  .input-field {
+    @apply w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-family-400 focus:ring-2 focus:ring-family-100 outline-none transition-all bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:focus:ring-family-800;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+}
+
+/* Dark mode overrides for common inline classes */
+.dark .bg-slate-50 { background-color: rgb(30 41 59); }
+.dark .bg-slate-100 { background-color: rgb(30 41 59); }
+.dark .border-slate-100 { border-color: rgb(51 65 85); }
+.dark .border-slate-200 { border-color: rgb(51 65 85); }
+.dark .text-slate-800 { color: rgb(226 232 240); }
+.dark .text-slate-700 { color: rgb(203 213 225); }
+.dark .text-slate-600 { color: rgb(148 163 184); }
+.dark .text-slate-500 { color: rgb(148 163 184); }
+.dark .text-slate-400 { color: rgb(100 116 139); }
+.dark .hover\:bg-slate-100:hover { background-color: rgb(51 65 85); }
+.dark .hover\:bg-slate-50:hover { background-color: rgb(51 65 85); }
+
+/* Dark mode for modals */
+.dark .bg-white { background-color: rgb(30 41 59); }
+
+/* Keep specific colored backgrounds in dark mode but dim them */
+.dark .bg-amber-50 { background-color: rgb(69 56 22); }
+.dark .bg-amber-100 { background-color: rgb(69 56 22); }
+.dark .bg-blue-50 { background-color: rgb(23 37 84); }
+.dark .bg-blue-100 { background-color: rgb(23 37 84); }
+.dark .bg-emerald-50 { background-color: rgb(6 46 34); }
+.dark .bg-emerald-100 { background-color: rgb(6 46 34); }
+.dark .bg-red-50 { background-color: rgb(69 10 10); }
+.dark .bg-red-100 { background-color: rgb(69 10 10); }
+.dark .bg-green-50 { background-color: rgb(6 46 34); }
+.dark .bg-family-50 { background-color: rgb(46 16 101); }
+.dark .bg-family-100 { background-color: rgb(46 16 101); }
+
+/* Sticky note dark colors */
+.dark .bg-yellow-100 { background-color: rgb(69 56 22); }
+.dark .bg-pink-100 { background-color: rgb(69 20 51); }
+.dark .bg-green-100 { background-color: rgb(6 46 34); }
+.dark .bg-purple-100 { background-color: rgb(46 16 101); }
+.dark .bg-orange-100 { background-color: rgb(67 40 11); }
+.dark .border-yellow-200 { border-color: rgb(113 91 36); }
+.dark .border-pink-200 { border-color: rgb(113 33 83); }
+.dark .border-green-200 { border-color: rgb(10 75 56); }
+.dark .border-purple-200 { border-color: rgb(76 29 149); }
+.dark .border-orange-200 { border-color: rgb(113 66 18); }
+.dark .border-blue-200 { border-color: rgb(37 61 138); }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.dark ::-webkit-scrollbar-thumb { background: #475569; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* Bottom nav safe area for mobile */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }

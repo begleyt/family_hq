@@ -1,0 +1,37 @@
+services:
+  family-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      family-backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - family-network
+
+  family-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET:-family-portal-s3cr3t-k3y-2026}
+      - PORT=4000
+    volumes:
+      - family-data:/app/data
+    restart: unless-stopped
+    networks:
+      - family-network
+
+networks:
+  family-network:
+    driver: bridge
+
+volumes:
+  family-data:
+    driver: local
