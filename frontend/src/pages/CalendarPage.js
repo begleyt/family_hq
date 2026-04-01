@@ -46,6 +46,7 @@ export default function CalendarPage() {
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
+  const [weekMeals, setWeekMeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState({ configured: false, connected: false });
 
@@ -135,7 +136,6 @@ export default function CalendarPage() {
     setLoading(true);
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    // Fetch wider range for month view
     const timeMin = new Date(year, month - 1, 1).toISOString();
     const timeMax = new Date(year, month + 2, 0).toISOString();
     try {
@@ -144,6 +144,17 @@ export default function CalendarPage() {
     } catch (e) {}
     setLoading(false);
   };
+
+  const fetchWeekMeals = async () => {
+    const start = getWeekStart();
+    const weekStr = start.toISOString().split('T')[0];
+    try {
+      const res = await api.get(`/meals?week=${weekStr}`);
+      setWeekMeals(res.data.meals || []);
+    } catch (e) {}
+  };
+
+  useEffect(() => { fetchWeekMeals(); }, [currentDate]);
 
   const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
@@ -435,6 +446,43 @@ export default function CalendarPage() {
       {loading && status.connected && (
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin w-8 h-8 border-4 border-family-300 border-t-family-600 rounded-full" />
+        </div>
+      )}
+
+      {/* Week Meals */}
+      {weekMeals.length > 0 && (
+        <div className="mt-4 card">
+          <h2 className="font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2 mb-3">
+            {'\u{1F37D}\u{FE0F}'} This Week's Meals
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
+            {(() => {
+              const days = getWeekDays();
+              const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+              const MEAL_EMOJI = { breakfast: '\u{1F373}', lunch: '\u{1F96A}', dinner: '\u{1F35D}', snack: '\u{1F34E}' };
+              return days.map((day, i) => {
+                const dateStr = day.toISOString().split('T')[0];
+                const dayMeals = weekMeals.filter(m => m.meal_date === dateStr);
+                if (dayMeals.length === 0) return null;
+                const today = isToday(day);
+                return (
+                  <div key={i} className={`rounded-xl p-2.5 ${today ? 'bg-family-50 dark:bg-family-900/20 border border-family-200 dark:border-family-800' : 'bg-slate-50 dark:bg-slate-700'}`}>
+                    <p className={`text-xs font-semibold mb-1.5 ${today ? 'text-family-600' : 'text-slate-500'}`}>
+                      {DAYS_SHORT[day.getDay()]} {day.getDate()}
+                    </p>
+                    <div className="space-y-1">
+                      {dayMeals.map(m => (
+                        <div key={m.id} className="flex items-center gap-1.5">
+                          <span className="text-xs">{MEAL_EMOJI[m.meal_type] || '\u{1F37D}'}</span>
+                          <span className="text-xs text-slate-700 dark:text-slate-200 truncate">{m.title}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }).filter(Boolean);
+            })()}
+          </div>
         </div>
       )}
 
