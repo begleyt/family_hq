@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
-import { Plus, X, Search, ChefHat, Clock, Users, Tag, ExternalLink, Edit, Trash2, Star, ShoppingCart, Check } from 'lucide-react';
+import { Plus, X, Search, ChefHat, Clock, Users, Tag, ExternalLink, Edit, Trash2, Star, ShoppingCart, Check, CalendarDays } from 'lucide-react';
 import Avatar from '../components/common/Avatar';
 
 export default function RecipesPage() {
@@ -17,7 +17,17 @@ export default function RecipesPage() {
   const [showGroceryAdd, setShowGroceryAdd] = useState(false);
   const [groceryIngredients, setGroceryIngredients] = useState([]);
   const [addingToGrocery, setAddingToGrocery] = useState(false);
+  const [showMealAdd, setShowMealAdd] = useState(null); // recipe object
+  const [mealDate, setMealDate] = useState('');
+  const [mealType, setMealType] = useState('dinner');
   const isDashboard = user.role === 'dashboard';
+
+  const MEAL_TYPES = [
+    { value: 'breakfast', label: 'Breakfast', emoji: '\u{1F373}' },
+    { value: 'lunch', label: 'Lunch', emoji: '\u{1F96A}' },
+    { value: 'dinner', label: 'Dinner', emoji: '\u{1F35D}' },
+    { value: 'snack', label: 'Snack', emoji: '\u{1F34E}' },
+  ];
 
   // Form
   const [title, setTitle] = useState('');
@@ -97,6 +107,29 @@ export default function RecipesPage() {
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to add');
     } finally { setAddingToGrocery(false); }
+  };
+
+  const handleAddToMeal = async (e) => {
+    e.preventDefault();
+    if (!mealDate) return alert('Please select a date');
+    await api.post('/meals', { mealDate, mealType, title: showMealAdd.title, description: showMealAdd.description || '', recipeId: showMealAdd.id });
+    const recipe = showMealAdd;
+    setShowMealAdd(null); setMealDate(''); setMealType('dinner');
+
+    // Prompt to add ingredients to grocery if recipe has them
+    if (recipe.ingredients) {
+      const parsed = (recipe.ingredients || '').split('\n').filter(l => l.trim()).map(line => {
+        const clean = line.replace(/^[-*•]\s*/, '').trim();
+        const match = clean.match(/^([\d½¼¾⅓⅔/.\s]+(?:cup|cups|lb|lbs|oz|tsp|tbsp|gallon|gallons|can|cans|pkg|bunch|head|clove|cloves|piece|pieces)?s?)\s+(.+)$/i);
+        if (match) return { name: match[2].trim(), quantity: match[1].trim(), include: true };
+        return { name: clean, quantity: '1', include: true };
+      });
+      if (parsed.length > 0) {
+        setGroceryIngredients(parsed);
+        setShowGroceryAdd(true);
+      }
+    }
+    alert(`Added "${recipe.title}" to ${mealType} on ${mealDate}`);
   };
 
   const handleDelete = async (id) => {
@@ -214,8 +247,13 @@ export default function RecipesPage() {
                     <ExternalLink size={14} /> View Original
                   </a>
                 )}
+                {isParent && (
+                  <button onClick={() => { setShowMealAdd(detail); setMealDate(''); setMealType('dinner'); }} className="btn-primary text-sm flex items-center gap-2">
+                    <CalendarDays size={14} /> Add to Meal Plan
+                  </button>
+                )}
                 {isParent && detail.ingredients && (
-                  <button onClick={() => openGroceryAdd(detail)} className="btn-primary text-sm flex items-center gap-2">
+                  <button onClick={() => openGroceryAdd(detail)} className="btn-secondary text-sm flex items-center gap-2">
                     <ShoppingCart size={14} /> Add to Grocery List
                   </button>
                 )}
@@ -256,6 +294,42 @@ export default function RecipesPage() {
 
       {/* Add/Edit Form Modal */}
       {/* Add Ingredients to Grocery Modal */}
+      {/* Add to Meal Plan Modal */}
+      {showMealAdd && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="fixed inset-0 bg-black/30" onClick={() => setShowMealAdd(null)} />
+          <div className="relative bg-white dark:bg-slate-800 rounded-t-2xl md:rounded-2xl w-full md:max-w-sm p-5 z-50">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <CalendarDays size={20} /> Add to Meal Plan
+              </h2>
+              <button onClick={() => setShowMealAdd(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={20} /></button>
+            </div>
+            <p className="text-sm text-slate-500 mb-3">
+              Schedule <span className="font-medium text-slate-700 dark:text-slate-200">{showMealAdd.title}</span>
+            </p>
+            <form onSubmit={handleAddToMeal} className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Date</label>
+                <input type="date" value={mealDate} onChange={e => setMealDate(e.target.value)} className="input-field" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Meal</label>
+                <div className="flex gap-2">
+                  {MEAL_TYPES.map(t => (
+                    <button key={t.value} type="button" onClick={() => setMealType(t.value)}
+                      className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-sm transition-all ${
+                        mealType === t.value ? 'bg-family-100 ring-2 ring-family-400 dark:bg-family-900/30' : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-700'
+                      }`}>{t.emoji} {t.label}</button>
+                  ))}
+                </div>
+              </div>
+              <button type="submit" className="btn-primary w-full">Add to Plan</button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showGroceryAdd && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
           <div className="fixed inset-0 bg-black/30" onClick={() => setShowGroceryAdd(false)} />
