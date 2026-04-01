@@ -16,8 +16,46 @@ function notify(userId, title, message, type, requestId) {
     .run(userId, title, message, type, requestId);
 }
 
+// Fetch Google Calendar events
+async function getCalendarEvents() {
+  try {
+    const { google } = require('googleapis');
+    const db = getDb();
+    const calConfig = db.prepare('SELECT * FROM google_calendar_config ORDER BY id DESC LIMIT 1').get();
+    if (!calConfig || !calConfig.refresh_token) return [];
+
+    const client = new google.auth.OAuth2(calConfig.client_id, calConfig.client_secret, calConfig.redirect_uri);
+    client.setCredentials({ access_token: calConfig.access_token, refresh_token: calConfig.refresh_token });
+
+    const calendar = google.calendar({ version: 'v3', auth: client });
+    const now = new Date();
+    const weekEnd = new Date(now);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+
+    const response = await calendar.events.list({
+      calendarId: calConfig.calendar_id || 'primary',
+      timeMin: now.toISOString(),
+      timeMax: weekEnd.toISOString(),
+      singleEvents: true,
+      orderBy: 'startTime',
+      maxResults: 20,
+    });
+
+    return (response.data.items || []).map(e => ({
+      title: e.summary || '(No title)',
+      date: e.start?.dateTime || e.start?.date || '',
+      end: e.end?.dateTime || e.end?.date || '',
+      location: e.location || '',
+      allDay: !!e.start?.date,
+    }));
+  } catch (err) {
+    console.error('AI calendar fetch error:', err.message);
+    return [];
+  }
+}
+
 // Gather family context
-function getFamilyContext(userId, userRole) {
+async function getFamilyContext(userId, userRole) {
   const db = getDb();
   const today = new Date().toISOString().split('T')[0];
   const dayName = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -47,7 +85,21 @@ function getFamilyContext(userId, userRole) {
   ctx += `GROCERY LIST (${groceryItems.length} items): ${groceryItems.length === 0 ? 'Empty' : groceryItems.map(g => `${g.name} x${g.quantity}`).join(', ')}\n\n`;
   ctx += `OPEN REQUESTS: ${requests.length === 0 ? 'None' : requests.map(r => `[${r.status}] ${r.title} (${r.category})`).join(', ')}\n\n`;
   ctx += `MESSAGE BOARD: ${messages.length === 0 ? 'Empty' : messages.map(m => `${m.display_name}: ${m.content}`).join(' | ')}\n\n`;
-  if (polls.length > 0) ctx += `ACTIVE POLLS: ${polls.map(p => p.type === 'food_order' ? `Food: ${p.restaurant_name}` : p.title).join(', ')}\n`;
+  if (polls.length > 0) ctx += `ACTIVE POLLS: ${polls.map(p => p.type === 'food_order' ? `Food: ${p.restaurant_name}` : p.title).join(', ')}\n\n`;
+
+  // Calendar events
+  const calEvents = await getCalendarEvents();
+  if (calEvents.length > 0) {
+    ctx += `UPCOMING CALENDAR EVENTS (next 7 days):\n`;
+    calEvents.forEach(e => {
+      const dateStr = e.allDay
+        ? new Date(e.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' (all day)'
+        : new Date(e.date).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      ctx += `- ${dateStr}: ${e.title}${e.location ? ` @ ${e.location}` : ''}\n`;
+    });
+  } else {
+    ctx += `CALENDAR: No upcoming events found (calendar may not be connected)\n`;
+  }
 
   return ctx;
 }
@@ -172,7 +224,7 @@ router.post('/chat', async (req, res) => {
     return res.status(400).json({ error: 'AI not configured. Ask a parent to set it up in Settings.' });
   }
 
-  const familyContext = getFamilyContext(req.user.id, req.user.role);
+  const familyContext = await getFamilyContext(req.user.id, req.user.role);
 
   const systemPrompt = `You are the Family HQ Assistant — a helpful, friendly AI for this family. You speak in a warm, casual tone and keep answers concise.
 
