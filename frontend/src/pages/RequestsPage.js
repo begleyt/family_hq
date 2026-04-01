@@ -6,6 +6,7 @@ import {
   Plus, X, Send, MessageSquare, Archive,
   CheckCircle2, XCircle, Clock, Calendar, MapPin, DollarSign
 } from 'lucide-react';
+import Avatar from '../components/common/Avatar';
 
 const CATEGORIES = [
   { value: 'grocery_item', label: 'Grocery Item', emoji: '\u{1F6D2}' },
@@ -233,7 +234,8 @@ export default function RequestsPage() {
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate">{req.title}</p>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {req.submitted_by_emoji} {req.submitted_by_name} &middot; {new Date(req.created_at + 'Z').toLocaleDateString()}
+                  <Avatar url={req.submitted_by_avatar_url} emoji={req.submitted_by_emoji} size="xs" className="inline-block align-middle mr-1" />
+                  {req.submitted_by_name} &middot; {new Date(req.created_at + 'Z').toLocaleDateString()}
                   {req.ride_destination && <> &middot; to {req.ride_destination}</>}
                   {req.allowance_amount && <> &middot; ${req.allowance_amount}</>}
                 </p>
@@ -399,7 +401,9 @@ export default function RequestsPage() {
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <span className={`badge ${STATUS_STYLE[detail.status]}`}>{STATUS_LABEL[detail.status]}</span>
                 <span className={`badge ${PRIORITIES.find(p => p.value === detail.priority)?.color || ''}`}>{detail.priority}</span>
-                <span className="text-xs text-slate-400">by {detail.submitted_by_name}</span>
+                <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <Avatar url={detail.submitted_by_avatar_url} emoji={detail.submitted_by_emoji} size="xs" /> {detail.submitted_by_name}
+                </span>
                 {detail.category === 'grocery_item' && detail.grocery_category && (
                   <span className="badge bg-emerald-50 text-emerald-600">
                     {GROCERY_CATEGORIES.find(c => c.value === detail.grocery_category)?.emoji} {detail.grocery_quantity || '1'}
@@ -542,7 +546,7 @@ export default function RequestsPage() {
                   {detail.comments?.map(c => (
                     <div key={c.id} className={`rounded-xl p-3 ${c.role === 'parent' ? 'bg-family-50 border border-family-100' : 'bg-slate-50'}`}>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm">{c.avatar_emoji}</span>
+                        <Avatar url={c.avatar_url} emoji={c.avatar_emoji} size="xs" />
                         <span className="text-xs font-semibold">{c.display_name}</span>
                         <span className="text-xs text-slate-400">{new Date(c.created_at + 'Z').toLocaleString()}</span>
                       </div>

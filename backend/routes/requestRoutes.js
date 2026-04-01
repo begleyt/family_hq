@@ -18,7 +18,7 @@ router.get('/', (req, res) => {
   const { status, category, priority, archived, page = 1, limit = 50 } = req.query;
   let sql = `
     SELECT r.*,
-      u1.display_name as submitted_by_name, u1.avatar_emoji as submitted_by_emoji,
+      u1.display_name as submitted_by_name, u1.avatar_emoji as submitted_by_emoji, u1.avatar_url as submitted_by_avatar_url,
       u2.display_name as assigned_to_name
     FROM requests r
     LEFT JOIN users u1 ON r.submitted_by = u1.id
@@ -54,7 +54,7 @@ router.get('/', (req, res) => {
 router.get('/:id', (req, res) => {
   const request = getDb().prepare(`
     SELECT r.*,
-      u1.display_name as submitted_by_name, u1.avatar_emoji as submitted_by_emoji,
+      u1.display_name as submitted_by_name, u1.avatar_emoji as submitted_by_emoji, u1.avatar_url as submitted_by_avatar_url,
       u2.display_name as assigned_to_name
     FROM requests r
     LEFT JOIN users u1 ON r.submitted_by = u1.id
@@ -69,7 +69,7 @@ router.get('/:id', (req, res) => {
   }
 
   const comments = getDb().prepare(`
-    SELECT c.*, u.display_name, u.avatar_emoji, u.role
+    SELECT c.*, u.display_name, u.avatar_emoji, u.avatar_url, u.role
     FROM request_comments c
     JOIN users u ON c.user_id = u.id
     WHERE c.request_id = ?

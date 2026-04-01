@@ -42,7 +42,7 @@ router.get('/', (req, res) => {
 
   // Recent pending requests (for parent dashboard)
   const pendingRequests = isParent ? db.prepare(`
-    SELECT r.*, u.display_name as submitted_by_name, u.avatar_emoji as submitted_by_emoji
+    SELECT r.*, u.display_name as submitted_by_name, u.avatar_emoji as submitted_by_emoji, u.avatar_url as submitted_by_avatar_url
     FROM requests r JOIN users u ON r.submitted_by = u.id
     WHERE r.status IN ('open', 'in_progress')
     ORDER BY r.created_at DESC LIMIT 5
