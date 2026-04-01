@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
-import { ChevronLeft, ChevronRight, Plus, X, ExternalLink, Trash2, Ticket } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, ExternalLink, Trash2, Ticket, Clock, Users, BookOpen } from 'lucide-react';
 
 const MEAL_TYPES = [
   { value: 'breakfast', label: 'Breakfast', emoji: '\u{1F373}' },
@@ -32,6 +32,7 @@ export default function MealPlannerPage() {
   const [meals, setMeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(null);
+  const [mealDetail, setMealDetail] = useState(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [recipeUrl, setRecipeUrl] = useState('');
@@ -135,16 +136,17 @@ export default function MealPlannerPage() {
                 return (
                   <div key={i} className={`p-2 border-l border-slate-100 dark:border-slate-700 min-h-[72px] ${isToday ? 'bg-family-50/30 dark:bg-family-900/10' : ''}`}>
                     {meal ? (
-                      <div className="bg-slate-50 dark:bg-slate-700 rounded-lg p-2.5 h-full group relative hover:shadow-md transition-shadow">
+                      <div onClick={() => setMealDetail(meal)} className="bg-slate-50 dark:bg-slate-700 rounded-lg p-2.5 h-full group relative hover:shadow-md transition-shadow cursor-pointer">
                         <p className="text-sm font-medium text-slate-800 dark:text-slate-100 leading-snug">{meal.title}</p>
                         {meal.description && (
                           <p className="text-xs text-slate-400 mt-1 line-clamp-1">{meal.description}</p>
                         )}
                         <div className="flex items-center gap-2 mt-1.5">
-                          {meal.recipe_url && (
-                            <a href={meal.recipe_url} target="_blank" rel="noopener noreferrer"
+                          {meal.recipe_id && <span className="text-[10px] text-family-500 flex items-center gap-0.5"><BookOpen size={10} /> Recipe</span>}
+                          {meal.recipe_url && !meal.recipe_id && (
+                            <a href={meal.recipe_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                               className="text-family-500 hover:text-family-600 flex items-center gap-1 text-xs">
-                              <ExternalLink size={12} /> Recipe
+                              <ExternalLink size={12} /> Link
                             </a>
                           )}
                         </div>
@@ -192,13 +194,9 @@ export default function MealPlannerPage() {
                   <div key={type.value} className="flex items-center gap-2">
                     <span className="text-sm w-6">{type.emoji}</span>
                     {meal ? (
-                      <div className="flex-1 flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2">
+                      <div onClick={() => setMealDetail(meal)} className="flex-1 flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-100 transition-colors">
                         <span className="text-sm font-medium flex-1 truncate">{meal.title}</span>
-                        {meal.recipe_url && (
-                          <a href={meal.recipe_url} target="_blank" rel="noopener noreferrer" className="text-family-500">
-                            <ExternalLink size={14} />
-                          </a>
-                        )}
+                        {meal.recipe_id && <BookOpen size={14} className="text-family-400 shrink-0" />}
                         {isParent && (
                           <button onClick={() => handleDelete(meal.id)} className="text-slate-300 hover:text-red-500">
                             <Trash2 size={14} />
@@ -251,6 +249,111 @@ export default function MealPlannerPage() {
               </div>
               <button type="submit" className="btn-primary w-full">Add to Plan</button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Meal Detail Modal */}
+      {mealDetail && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="fixed inset-0 bg-black/30" onClick={() => setMealDetail(null)} />
+          <div className="relative bg-white dark:bg-slate-800 rounded-t-2xl md:rounded-2xl w-full md:max-w-lg max-h-[90vh] overflow-y-auto z-50">
+            <div className="sticky top-0 bg-white dark:bg-slate-800 p-5 pb-3 border-b border-slate-100 dark:border-slate-700 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold">{mealDetail.title}</h2>
+                  <p className="text-xs text-slate-400 mt-0.5 capitalize">
+                    {mealDetail.meal_type} &middot; {new Date(mealDetail.meal_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+                <button onClick={() => setMealDetail(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={20} /></button>
+              </div>
+            </div>
+            <div className="p-5 space-y-4">
+              {mealDetail.description && (
+                <div className="bg-slate-50 dark:bg-slate-700 rounded-xl p-3">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">{mealDetail.description}</p>
+                </div>
+              )}
+
+              {mealDetail.recipe_url && !mealDetail.recipe_id && (
+                <a href={mealDetail.recipe_url} target="_blank" rel="noopener noreferrer" className="btn-secondary text-sm flex items-center gap-2 w-fit">
+                  <ExternalLink size={14} /> View Recipe Link
+                </a>
+              )}
+
+              {/* Linked Recipe */}
+              {mealDetail.recipe_id && (
+                <div className="border border-family-200 dark:border-family-800 rounded-xl overflow-hidden">
+                  <div className="bg-family-50 dark:bg-family-900/30 px-4 py-2.5 flex items-center gap-2">
+                    <BookOpen size={16} className="text-family-500" />
+                    <span className="text-sm font-semibold text-family-700 dark:text-family-300">{mealDetail.recipe_title}</span>
+                  </div>
+
+                  {mealDetail.recipe_description && (
+                    <p className="px-4 pt-3 text-sm text-slate-500">{mealDetail.recipe_description}</p>
+                  )}
+
+                  <div className="flex flex-wrap gap-3 px-4 py-2 text-xs text-slate-400">
+                    {mealDetail.recipe_prep_time && <span className="flex items-center gap-1"><Clock size={12} /> Prep: {mealDetail.recipe_prep_time}</span>}
+                    {mealDetail.recipe_cook_time && <span className="flex items-center gap-1"><Clock size={12} /> Cook: {mealDetail.recipe_cook_time}</span>}
+                    {mealDetail.recipe_servings && <span className="flex items-center gap-1"><Users size={12} /> Serves {mealDetail.recipe_servings}</span>}
+                  </div>
+
+                  {mealDetail.recipe_ingredients && (
+                    <div className="px-4 pb-3">
+                      <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">Ingredients</h4>
+                      <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border border-slate-100 dark:border-slate-600">
+                        {mealDetail.recipe_ingredients.split('\n').filter(l => l.trim()).map((line, i) => (
+                          <p key={i} className="text-xs text-slate-600 dark:text-slate-300 py-0.5">{line.startsWith('-') ? line : `- ${line}`}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {mealDetail.recipe_instructions && (
+                    <div className="px-4 pb-3">
+                      <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">Instructions</h4>
+                      <div className="space-y-1.5">
+                        {mealDetail.recipe_instructions.split('\n').filter(l => l.trim()).map((line, i) => (
+                          <div key={i} className="flex gap-2">
+                            <span className="w-5 h-5 rounded-full bg-family-100 dark:bg-family-900/30 text-family-600 text-[10px] flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                            <p className="text-xs text-slate-600 dark:text-slate-300">{line.replace(/^\d+[\.\)]\s*/, '')}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {mealDetail.recipe_source_url && (
+                    <div className="px-4 pb-3">
+                      <a href={mealDetail.recipe_source_url} target="_blank" rel="noopener noreferrer" className="text-xs text-family-500 hover:text-family-600 flex items-center gap-1">
+                        <ExternalLink size={12} /> View Original Recipe
+                      </a>
+                    </div>
+                  )}
+
+                  {mealDetail.recipe_tags && (
+                    <div className="px-4 pb-3 flex flex-wrap gap-1">
+                      {mealDetail.recipe_tags.split(',').map((t, i) => (
+                        <span key={i} className="badge bg-family-100 text-family-600 dark:bg-family-900/30 dark:text-family-300 text-[10px]">{t.trim()}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!mealDetail.recipe_id && !mealDetail.recipe_url && !mealDetail.description && (
+                <p className="text-sm text-slate-400 text-center py-4">No additional details for this meal</p>
+              )}
+
+              {isParent && (
+                <button onClick={() => { handleDelete(mealDetail.id); setMealDetail(null); }}
+                  className="btn-danger w-full text-sm flex items-center justify-center gap-2">
+                  <Trash2 size={14} /> Remove from Planner
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

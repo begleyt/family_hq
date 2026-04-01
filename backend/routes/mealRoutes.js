@@ -25,10 +25,15 @@ router.get('/', (req, res) => {
   const end = endDate.toISOString().split('T')[0];
 
   const meals = getDb().prepare(`
-    SELECT m.*, u.display_name as created_by_name, u2.display_name as assigned_to_name
+    SELECT m.*, u.display_name as created_by_name, u2.display_name as assigned_to_name,
+      r.id as recipe_id, r.title as recipe_title, r.ingredients as recipe_ingredients,
+      r.instructions as recipe_instructions, r.prep_time as recipe_prep_time,
+      r.cook_time as recipe_cook_time, r.servings as recipe_servings, r.tags as recipe_tags,
+      r.source_url as recipe_source_url, r.description as recipe_description
     FROM meals m
     LEFT JOIN users u ON m.created_by = u.id
     LEFT JOIN users u2 ON m.assigned_to = u2.id
+    LEFT JOIN recipes r ON m.recipe_id = r.id
     WHERE m.meal_date BETWEEN ? AND ?
     ORDER BY m.meal_date ASC,
       CASE m.meal_type WHEN 'breakfast' THEN 1 WHEN 'lunch' THEN 2 WHEN 'dinner' THEN 3 WHEN 'snack' THEN 4 END
