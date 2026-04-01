@@ -120,7 +120,7 @@ export default function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState(null);
 
   // View mode
-  const [view, setView] = useState('month'); // 'month' or 'week'
+  const [view, setView] = useState('week'); // 'month' or 'week'
 
   useEffect(() => {
     api.get('/calendar/status').then(res => setStatus(res.data)).catch(() => {});
