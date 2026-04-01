@@ -10,6 +10,7 @@ import RequestsPage from './pages/RequestsPage';
 import GroceryPage from './pages/GroceryPage';
 import MealPlannerPage from './pages/MealPlannerPage';
 import AdminUsersPage from './pages/AdminUsersPage';
+import PantryPage from './pages/PantryPage';
 import RecipesPage from './pages/RecipesPage';
 import CalendarPage from './pages/CalendarPage';
 import PollsPage from './pages/PollsPage';
@@ -35,6 +36,7 @@ function AppRoutes() {
       <Route path="/requests" element={<ProtectedRoute><AppShell><RequestsPage /></AppShell></ProtectedRoute>} />
       <Route path="/grocery" element={<ProtectedRoute><AppShell><GroceryPage /></AppShell></ProtectedRoute>} />
       <Route path="/meals" element={<ProtectedRoute><AppShell><MealPlannerPage /></AppShell></ProtectedRoute>} />
+      <Route path="/pantry" element={<ProtectedRoute><AppShell><PantryPage /></AppShell></ProtectedRoute>} />
       <Route path="/recipes" element={<ProtectedRoute><AppShell><RecipesPage /></AppShell></ProtectedRoute>} />
       <Route path="/polls" element={<ProtectedRoute><AppShell><PollsPage /></AppShell></ProtectedRoute>} />
       <Route path="/calendar" element={<ProtectedRoute><AppShell><CalendarPage /></AppShell></ProtectedRoute>} />

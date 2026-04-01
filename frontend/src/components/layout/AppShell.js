@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../api';
 import {
-  LayoutDashboard, Ticket, ShoppingCart, UtensilsCrossed, CalendarDays, BarChart3, BookOpen,
+  LayoutDashboard, Ticket, ShoppingCart, UtensilsCrossed, CalendarDays, BarChart3, BookOpen, Package,
   Users, LogOut, Menu, X, Bell, CheckCheck, Moon, Sun, Camera
 } from 'lucide-react';
 import Avatar from '../common/Avatar';
@@ -16,6 +16,7 @@ const navItems = [
   { to: '/requests', icon: Ticket, label: 'Requests' },
   { to: '/grocery', icon: ShoppingCart, label: 'Grocery' },
   { to: '/meals', icon: UtensilsCrossed, label: 'Meals' },
+  { to: '/pantry', icon: Package, label: 'Pantry' },
   { to: '/recipes', icon: BookOpen, label: 'Recipes' },
   { to: '/polls', icon: BarChart3, label: 'Polls' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendar' },

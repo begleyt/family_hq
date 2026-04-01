@@ -91,6 +91,8 @@ async function getFamilyContext(userId, userRole) {
   const messages = db.prepare('SELECT m.content, u.display_name FROM messages m JOIN users u ON m.user_id = u.id ORDER BY m.created_at DESC LIMIT 5').all();
   const polls = db.prepare("SELECT title, type, restaurant_name FROM polls WHERE status = 'open'").all();
   const recipes = db.prepare('SELECT id, title, tags FROM recipes ORDER BY title LIMIT 50').all();
+  const pantryItems = db.prepare('SELECT name, quantity, location, low_stock, expiration_date FROM pantry_items ORDER BY location, name').all();
+  const expiringItems = db.prepare("SELECT name, expiration_date FROM pantry_items WHERE expiration_date IS NOT NULL AND expiration_date <= date('now', '+3 days') ORDER BY expiration_date").all();
 
   let ctx = `Today is ${dayName} (${today}).\n\n=== DATE LOOKUP TABLE ===\n${upcomingDays.join('\n')}\n=== END DATE LOOKUP ===\nRULE: When the user says a day name, ALWAYS look it up in the table above and use that EXACT YYYY-MM-DD date. NEVER calculate or add days yourself.\n\nFAMILY: ${members.map(m => `${m.display_name} (${m.role})`).join(', ')}\n\n`;
   ctx += `TODAY'S MEALS: ${meals.length === 0 ? 'None planned' : meals.map(m => `${m.meal_type}: ${m.title}`).join(', ')}\n\n`;
@@ -100,6 +102,18 @@ async function getFamilyContext(userId, userRole) {
   ctx += `MESSAGE BOARD: ${messages.length === 0 ? 'Empty' : messages.map(m => `${m.display_name}: ${m.content}`).join(' | ')}\n\n`;
   if (polls.length > 0) ctx += `ACTIVE POLLS: ${polls.map(p => p.type === 'food_order' ? `Food: ${p.restaurant_name}` : p.title).join(', ')}\n\n`;
   ctx += `RECIPE BOOK (${recipes.length} recipes): ${recipes.length === 0 ? 'Empty' : recipes.map(r => `ID:${r.id} "${r.title}"${r.tags ? ` [${r.tags}]` : ''}`).join(', ')}\n\n`;
+  if (pantryItems.length > 0) {
+    const byLoc = {};
+    pantryItems.forEach(p => { if (!byLoc[p.location]) byLoc[p.location] = []; byLoc[p.location].push(p); });
+    ctx += `PANTRY INVENTORY:\n`;
+    for (const [loc, items] of Object.entries(byLoc)) {
+      ctx += `  ${loc}: ${items.map(i => `${i.name} (${i.quantity})${i.low_stock ? ' [LOW]' : ''}`).join(', ')}\n`;
+    }
+    ctx += '\n';
+  }
+  if (expiringItems.length > 0) {
+    ctx += `EXPIRING SOON: ${expiringItems.map(e => `${e.name} (${e.expiration_date})`).join(', ')}\n\n`;
+  }
 
   // Calendar events
   const calEvents = await getCalendarEvents();

@@ -138,6 +138,21 @@ CREATE TABLE IF NOT EXISTS message_comments (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Pantry Inventory
+CREATE TABLE IF NOT EXISTS pantry_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    quantity TEXT DEFAULT '1',
+    category TEXT NOT NULL DEFAULT 'other',
+    location TEXT NOT NULL DEFAULT 'pantry' CHECK(location IN ('fridge', 'freezer', 'pantry', 'cabinet', 'counter', 'other')),
+    expiration_date DATE,
+    low_stock INTEGER DEFAULT 0,
+    notes TEXT,
+    added_by INTEGER NOT NULL REFERENCES users(id),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Recipe Book
 CREATE TABLE IF NOT EXISTS recipes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
