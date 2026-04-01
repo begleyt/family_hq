@@ -130,10 +130,11 @@ router.post('/', roleCheck('parent'), (req, res) => {
   const { name, quantity, category, forRecipe } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
 
+  const cat = (category && category !== 'other') ? category : categorizeItem(name);
   const result = getDb().prepare(`
     INSERT INTO grocery_items (name, quantity, category, added_by, for_recipe)
     VALUES (?, ?, ?, ?, ?)
-  `).run(name, quantity || '1', category || 'other', req.user.id, forRecipe || null);
+  `).run(name, quantity || '1', cat, req.user.id, forRecipe || null);
 
   trackHistory(name, category || 'other', quantity || '1');
   logActivity(req.user.id, 'added_grocery', 'grocery', result.lastInsertRowid, name);
@@ -189,6 +190,44 @@ router.delete('/checked/clear', roleCheck('parent'), (req, res) => {
   res.json({ message: `Cleared ${result.changes} items` });
 });
 
+// Auto-categorize grocery items by keyword matching
+function categorizeItem(name) {
+  const n = name.toLowerCase();
+
+  // Produce
+  if (/\b(lettuce|tomato|onion|garlic|pepper|potato|carrot|celery|broccoli|spinach|kale|cucumber|avocado|mushroom|zucchini|squash|corn|bean sprout|cilantro|parsley|basil|mint|ginger|lemon|lime|orange|apple|banana|grape|strawberr|blueberr|raspberr|mango|pineapple|peach|pear|melon|watermelon|berr|fruit|vegetable|salad|herb|scallion|shallot|jalape|cabbage|cauliflower|asparagus|artichoke|beet|radish|turnip|sweet potato|green bean|snap pea|bell pepper|chili|chilli|fresh)\b/.test(n)) return 'produce';
+
+  // Meat
+  if (/\b(chicken|beef|pork|steak|ground|turkey|bacon|sausage|ham|lamb|meat|ribs|roast|tenderloin|breast|thigh|wing|drumstick|ground beef|ground turkey|salmon|tuna|shrimp|fish|cod|tilapia|crab|lobster|seafood|meatball|hot dog|brisket|chuck)\b/.test(n)) return 'meat';
+
+  // Dairy
+  if (/\b(milk|cheese|butter|cream|yogurt|sour cream|egg|eggs|cream cheese|mozzarella|cheddar|parmesan|ricotta|cottage cheese|whipping cream|half and half|heavy cream|whipped)\b/.test(n)) return 'dairy';
+
+  // Bakery
+  if (/\b(bread|rolls|bun|buns|bagel|tortilla|pita|croissant|muffin|cake|pie crust|dough|biscuit|english muffin|flatbread|naan|wrap)\b/.test(n)) return 'bakery';
+
+  // Frozen
+  if (/\b(frozen|ice cream|pizza|waffle|french fries|tater tot|popsicle|frozen vegetable|frozen fruit)\b/.test(n)) return 'frozen';
+
+  // Beverages
+  if (/\b(juice|soda|water|coffee|tea|drink|wine|beer|lemonade|gatorade|milk)\b/.test(n) && !/\b(coconut milk|almond milk)\b/.test(n)) return 'beverages';
+
+  // Snacks
+  if (/\b(chip|chips|cracker|cookie|candy|chocolate|popcorn|pretzel|nut|nuts|granola bar|trail mix|snack|goldfish|cheez)\b/.test(n)) return 'snacks';
+
+  // Household
+  if (/\b(paper towel|toilet paper|soap|detergent|trash bag|foil|plastic wrap|sponge|bleach|cleaner|wipe|napkin|tissue|laundry|dish soap|ziploc|bag)\b/.test(n)) return 'household';
+
+  // Pantry (broad catch for shelf-stable items)
+  if (/\b(flour|sugar|salt|pepper|oil|olive oil|vegetable oil|vinegar|soy sauce|ketchup|mustard|mayo|mayonnaise|hot sauce|worcestershire|pasta|noodle|rice|quinoa|oat|cereal|pancake|syrup|honey|jam|jelly|peanut butter|can|canned|broth|stock|sauce|tomato sauce|tomato paste|diced tomato|bean|lentil|chickpea|spice|seasoning|cumin|paprika|oregano|thyme|cinnamon|nutmeg|baking|baking soda|baking powder|vanilla|cornstarch|breadcrumb|panko|crouton|soup|ramen|taco|tortilla chip|salsa|dressing|marinade|coconut milk|almond milk)\b/.test(n)) return 'pantry';
+
+  // Check grocery history for previously categorized items
+  const history = getDb().prepare('SELECT category FROM grocery_history WHERE name = ? COLLATE NOCASE').get(name);
+  if (history && history.category !== 'other') return history.category;
+
+  return 'other';
+}
+
 // POST /api/grocery/from-recipe - add recipe ingredients to grocery list (parent only)
 router.post('/from-recipe', roleCheck('parent'), (req, res) => {
   const { items, recipeName } = req.body;
@@ -205,8 +244,9 @@ router.post('/from-recipe', roleCheck('parent'), (req, res) => {
       skipped++;
       continue;
     }
-    insert.run(item.name.trim(), item.quantity || '1', item.category || 'other', req.user.id, recipeName || null);
-    trackHistory(item.name.trim(), item.category || 'other', item.quantity || '1');
+    const cat = item.category || categorizeItem(item.name.trim());
+    insert.run(item.name.trim(), item.quantity || '1', cat, req.user.id, recipeName || null);
+    trackHistory(item.name.trim(), cat, item.quantity || '1');
     added++;
   }
 
@@ -214,4 +254,5 @@ router.post('/from-recipe', roleCheck('parent'), (req, res) => {
   res.json({ message: `Added ${added} items${skipped > 0 ? `, ${skipped} already on list` : ''}` });
 });
 
+router.categorizeItem = categorizeItem;
 module.exports = router;

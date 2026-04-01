@@ -177,8 +177,11 @@ async function executeTool(toolName, toolInput, userId, userRole, displayName) {
         const exists = db.prepare('SELECT id FROM grocery_items WHERE name = ? COLLATE NOCASE AND is_checked = 0').get(name);
         if (exists) { skipped++; continue; }
         const qty = typeof item === 'object' ? (item.quantity || '1') : '1';
+        // Auto-categorize
+        const groceryRouter = require('./groceryRoutes');
+        const cat = groceryRouter.categorizeItem ? groceryRouter.categorizeItem(name) : 'other';
         db.prepare('INSERT INTO grocery_items (name, quantity, category, added_by, for_recipe) VALUES (?, ?, ?, ?, ?)')
-          .run(name, qty, 'other', userId, grRecipeName || null);
+          .run(name, qty, cat, userId, grRecipeName || null);
         added++;
       }
       return `Added ${added} ingredients to grocery list for "${grRecipeName || 'recipe'}"${skipped > 0 ? ` (${skipped} already on list)` : ''}.`;
