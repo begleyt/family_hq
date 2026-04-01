@@ -106,7 +106,7 @@ async function getFamilyContext(userId, userRole) {
 }
 
 // Execute AI tool calls
-function executeTool(toolName, toolInput, userId, userRole, displayName) {
+async function executeTool(toolName, toolInput, userId, userRole, displayName) {
   const db = getDb();
 
   switch (toolName) {
@@ -165,6 +165,38 @@ function executeTool(toolName, toolInput, userId, userRole, displayName) {
           .run(req.title, req.grocery_quantity || '1', req.grocery_category || 'other', userId, req.submitted_by);
       }
 
+      // Ride request → create Google Calendar event
+      let calendarAdded = false;
+      if (req.category === 'ride_request' && req.ride_time) {
+        try {
+          const { google } = require('googleapis');
+          const calConfig = db.prepare('SELECT * FROM google_calendar_config ORDER BY id DESC LIMIT 1').get();
+          if (calConfig && calConfig.refresh_token) {
+            const oauthClient = new google.auth.OAuth2(calConfig.client_id, calConfig.client_secret, calConfig.redirect_uri);
+            oauthClient.setCredentials({ access_token: calConfig.access_token, refresh_token: calConfig.refresh_token });
+
+            const submitter = db.prepare('SELECT display_name FROM users WHERE id = ?').get(req.submitted_by);
+            const rideDate = new Date(req.ride_time);
+            const endDate = new Date(rideDate.getTime() + 60 * 60 * 1000);
+
+            const calendar = google.calendar({ version: 'v3', auth: oauthClient });
+            await calendar.events.insert({
+              calendarId: calConfig.calendar_id || 'primary',
+              requestBody: {
+                summary: `Ride: ${submitter?.display_name || 'Someone'} - ${req.title}`,
+                description: req.description || '',
+                location: req.ride_destination || '',
+                start: { dateTime: rideDate.toISOString(), timeZone: 'America/Chicago' },
+                end: { dateTime: endDate.toISOString(), timeZone: 'America/Chicago' },
+              },
+            });
+            calendarAdded = true;
+          }
+        } catch (err) {
+          console.error('AI: Failed to create calendar event for ride:', err.message);
+        }
+      }
+
       // Notify requester
       notify(req.submitted_by, 'Request Approved!', `Your request "${req.title}" has been approved${parent_note ? ': ' + parent_note : ''}`, 'approved', request_id);
 
@@ -172,7 +204,10 @@ function executeTool(toolName, toolInput, userId, userRole, displayName) {
       db.prepare('UPDATE notifications SET is_read = 1 WHERE request_id = ? AND user_id = ? AND is_read = 0').run(request_id, userId);
 
       logActivity(userId, 'approved_request', 'request', request_id, `${req.title} → approved`);
-      return `Approved request "${req.title}"${req.category === 'grocery_item' ? ' and added to grocery list' : ''}.`;
+      let result = `Approved request "${req.title}"`;
+      if (req.category === 'grocery_item') result += ' and added to grocery list';
+      if (calendarAdded) result += ' and added to the calendar';
+      return result + '.';
     }
 
     case 'deny_request': {
@@ -354,7 +389,7 @@ CAPABILITIES:
       const toolResults = [];
 
       for (const tool of toolBlocks) {
-        const result = executeTool(tool.name, tool.input, req.user.id, req.user.role, req.user.displayName);
+        const result = await executeTool(tool.name, tool.input, req.user.id, req.user.role, req.user.displayName);
         actions.push({ tool: tool.name, input: tool.input, result });
         toolResults.push({
           type: 'tool_result',
