@@ -96,6 +96,14 @@ router.post('/', (req, res) => {
   );
 
   logActivity(req.user.id, 'created_request', 'request', result.lastInsertRowid, `New request: ${title}`);
+
+  // Notify all parents about the new request
+  const submitter = getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(req.user.id);
+  const parents = getDb().prepare("SELECT id FROM users WHERE role = 'parent' AND is_active = 1 AND id != ?").all(req.user.id);
+  for (const p of parents) {
+    notify(p.id, 'New Request', `${submitter?.display_name || 'Someone'} submitted: "${title}"`, 'info', result.lastInsertRowid);
+  }
+
   res.status(201).json({ id: result.lastInsertRowid, message: 'Request created' });
 });
 
@@ -133,6 +141,12 @@ router.put('/:id', async (req, res) => {
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `).run(title, description, category, priority, status, assignedTo, parentNote, status, req.user.id, status, req.params.id);
+
+  // Mark parent notifications for this request as read when acted on
+  if (status && ['approved', 'denied', 'completed', 'in_progress'].includes(status)) {
+    getDb().prepare('UPDATE notifications SET is_read = 1 WHERE request_id = ? AND user_id = ? AND is_read = 0')
+      .run(req.params.id, req.user.id);
+  }
 
   // Handle approval side-effects
   if (status === 'approved' && request.status !== 'approved') {
