@@ -178,6 +178,14 @@ CREATE TABLE IF NOT EXISTS food_orders (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- AI Assistant config
+CREATE TABLE IF NOT EXISTS ai_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL DEFAULT 'claude' CHECK(provider IN ('claude', 'openai')),
+    api_key TEXT NOT NULL,
+    model TEXT DEFAULT 'claude-sonnet-4-20250514'
+);
+
 -- Google Calendar OAuth tokens
 CREATE TABLE IF NOT EXISTS google_calendar_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

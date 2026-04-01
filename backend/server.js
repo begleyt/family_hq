@@ -25,6 +25,7 @@ app.use('/api/requests', require('./routes/requestRoutes'));
 app.use('/api/grocery', require('./routes/groceryRoutes'));
 app.use('/api/meals', require('./routes/mealRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+app.use('/api/ai', require('./routes/aiRoutes'));
 app.use('/api/polls', require('./routes/pollRoutes'));
 app.use('/api/calendar', require('./routes/calendarRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));

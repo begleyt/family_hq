@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Avatar from '../common/Avatar';
 import ImageCropper from '../common/ImageCropper';
+import AiChat from '../common/AiChat';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -267,6 +268,9 @@ export default function AppShell({ children }) {
         {navItems.map((item) => <MobileNavItem key={item.to} {...item} />)}
         {user?.role === 'parent' && <MobileNavItem to="/admin/users" icon={Users} label="Family" />}
       </nav>
+
+      {/* AI Chat */}
+      <AiChat />
 
       {/* Image Cropper Modal */}
       {cropFile && (
