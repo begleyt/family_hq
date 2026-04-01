@@ -13,7 +13,7 @@ router.get('/', (req, res) => {
   const params = [];
   if (location) { sql += ' AND p.location = ?'; params.push(location); }
   if (search) { sql += ' AND p.name LIKE ?'; params.push(`%${search}%`); }
-  sql += ' ORDER BY p.location, CASE WHEN p.expiration_date IS NOT NULL AND p.expiration_date <= date("now", "+3 days") THEN 0 ELSE 1 END, p.category, p.name';
+  sql += ` ORDER BY p.location, CASE WHEN p.expiration_date IS NOT NULL AND p.expiration_date <= date('now', '+3 days') THEN 0 ELSE 1 END, p.category, p.name`;
   res.json(getDb().prepare(sql).all(...params));
 });
 
