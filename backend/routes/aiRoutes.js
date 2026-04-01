@@ -73,8 +73,8 @@ async function getFamilyContext(userId, userRole) {
 
   const groceryItems = db.prepare('SELECT name, quantity, category FROM grocery_items WHERE is_checked = 0 ORDER BY category').all();
   const requests = userRole === 'parent'
-    ? db.prepare("SELECT title, category, priority, status FROM requests WHERE status IN ('open', 'in_progress') AND COALESCE(archived, 0) = 0 ORDER BY created_at DESC LIMIT 10").all()
-    : db.prepare("SELECT title, category, priority, status FROM requests WHERE submitted_by = ? AND COALESCE(archived, 0) = 0 ORDER BY created_at DESC LIMIT 10").all(userId);
+    ? db.prepare("SELECT r.id, r.title, r.category, r.priority, r.status, r.description, u.display_name as from_name FROM requests r LEFT JOIN users u ON r.submitted_by = u.id WHERE r.status IN ('open', 'in_progress') AND COALESCE(r.archived, 0) = 0 ORDER BY r.created_at DESC LIMIT 10").all()
+    : db.prepare("SELECT id, title, category, priority, status, description FROM requests WHERE submitted_by = ? AND COALESCE(archived, 0) = 0 ORDER BY created_at DESC LIMIT 10").all(userId);
 
   const messages = db.prepare('SELECT m.content, u.display_name FROM messages m JOIN users u ON m.user_id = u.id ORDER BY m.created_at DESC LIMIT 5').all();
   const polls = db.prepare("SELECT title, type, restaurant_name FROM polls WHERE status = 'open'").all();
@@ -83,7 +83,7 @@ async function getFamilyContext(userId, userRole) {
   ctx += `TODAY'S MEALS: ${meals.length === 0 ? 'None planned' : meals.map(m => `${m.meal_type}: ${m.title}`).join(', ')}\n\n`;
   ctx += `WEEK MEALS:\n${weekMeals.length === 0 ? 'None' : weekMeals.map(m => `${m.meal_date} ${m.meal_type}: ${m.title}`).join('\n')}\n\n`;
   ctx += `GROCERY LIST (${groceryItems.length} items): ${groceryItems.length === 0 ? 'Empty' : groceryItems.map(g => `${g.name} x${g.quantity}`).join(', ')}\n\n`;
-  ctx += `OPEN REQUESTS: ${requests.length === 0 ? 'None' : requests.map(r => `[${r.status}] ${r.title} (${r.category})`).join(', ')}\n\n`;
+  ctx += `OPEN REQUESTS:\n${requests.length === 0 ? 'None' : requests.map(r => `- ID:${r.id} [${r.status}] "${r.title}" (${r.category})${r.from_name ? ` from ${r.from_name}` : ''}`).join('\n')}\n\n`;
   ctx += `MESSAGE BOARD: ${messages.length === 0 ? 'Empty' : messages.map(m => `${m.display_name}: ${m.content}`).join(' | ')}\n\n`;
   if (polls.length > 0) ctx += `ACTIVE POLLS: ${polls.map(p => p.type === 'food_order' ? `Food: ${p.restaurant_name}` : p.title).join(', ')}\n\n`;
 
@@ -142,6 +142,49 @@ function executeTool(toolName, toolInput, userId, userRole, displayName) {
       return `Posted to the message board: "${content}"`;
     }
 
+    case 'approve_request': {
+      if (userRole !== 'parent') return 'Only parents can approve requests.';
+      const { request_id, parent_note } = toolInput;
+      const req = db.prepare('SELECT * FROM requests WHERE id = ?').get(request_id);
+      if (!req) return `Request #${request_id} not found.`;
+      if (req.status !== 'open' && req.status !== 'in_progress') return `Request "${req.title}" is already ${req.status}.`;
+
+      db.prepare("UPDATE requests SET status = 'approved', parent_note = ?, resolved_by = ?, resolved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        .run(parent_note || null, userId, request_id);
+
+      // Auto-add grocery item if grocery_item request
+      if (req.category === 'grocery_item') {
+        db.prepare('INSERT INTO grocery_items (name, quantity, category, added_by, requested_by) VALUES (?, ?, ?, ?, ?)')
+          .run(req.title, req.grocery_quantity || '1', req.grocery_category || 'other', userId, req.submitted_by);
+      }
+
+      // Notify requester
+      notify(req.submitted_by, 'Request Approved!', `Your request "${req.title}" has been approved${parent_note ? ': ' + parent_note : ''}`, 'approved', request_id);
+
+      // Mark parent notifications as read
+      db.prepare('UPDATE notifications SET is_read = 1 WHERE request_id = ? AND user_id = ? AND is_read = 0').run(request_id, userId);
+
+      logActivity(userId, 'approved_request', 'request', request_id, `${req.title} → approved`);
+      return `Approved request "${req.title}"${req.category === 'grocery_item' ? ' and added to grocery list' : ''}.`;
+    }
+
+    case 'deny_request': {
+      if (userRole !== 'parent') return 'Only parents can deny requests.';
+      const { request_id: denyId, reason } = toolInput;
+      const dReq = db.prepare('SELECT * FROM requests WHERE id = ?').get(denyId);
+      if (!dReq) return `Request #${denyId} not found.`;
+      if (dReq.status !== 'open' && dReq.status !== 'in_progress') return `Request "${dReq.title}" is already ${dReq.status}.`;
+
+      db.prepare("UPDATE requests SET status = 'denied', parent_note = ?, resolved_by = ?, resolved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        .run(reason || null, userId, denyId);
+
+      notify(dReq.submitted_by, 'Request Denied', `Your request "${dReq.title}" was denied${reason ? ': ' + reason : ''}`, 'denied', denyId);
+      db.prepare('UPDATE notifications SET is_read = 1 WHERE request_id = ? AND user_id = ? AND is_read = 0').run(denyId, userId);
+
+      logActivity(userId, 'denied_request', 'request', denyId, `${dReq.title} → denied`);
+      return `Denied request "${dReq.title}"${reason ? ` — ${reason}` : ''}.`;
+    }
+
     default:
       return `Unknown tool: ${toolName}`;
   }
@@ -184,6 +227,30 @@ const AI_TOOLS = [
         content: { type: 'string', description: 'Message content' },
       },
       required: ['content'],
+    },
+  },
+  {
+    name: 'approve_request',
+    description: 'Approve an open family request. Only works for parent users. Use the request ID from the OPEN REQUESTS list. For grocery_item requests this also adds the item to the grocery list automatically.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        request_id: { type: 'integer', description: 'The ID of the request to approve' },
+        parent_note: { type: 'string', description: 'Optional note to include with the approval' },
+      },
+      required: ['request_id'],
+    },
+  },
+  {
+    name: 'deny_request',
+    description: 'Deny/reject an open family request. Only works for parent users. Use the request ID from the OPEN REQUESTS list.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        request_id: { type: 'integer', description: 'The ID of the request to deny' },
+        reason: { type: 'string', description: 'Reason for denying the request' },
+      },
+      required: ['request_id'],
     },
   },
 ];
@@ -234,11 +301,13 @@ FAMILY DATA:
 ${familyContext}
 
 CAPABILITIES:
-- You can answer questions about family meals, grocery list, requests, schedule, and messages.
+- You can answer questions about family meals, grocery list, requests, schedule, calendar, and messages.
 - You can CREATE REQUESTS on behalf of the user using the create_request tool. Choose the right category automatically.
 - If the user is a parent, you can ADD GROCERY ITEMS directly using add_grocery_item.
 - If the user is a teen/child asking for grocery items, create a grocery_item request instead (it needs parent approval).
 - You can POST MESSAGES to the family message board using post_message.
+- If the user is a PARENT, you can APPROVE or DENY open requests using approve_request and deny_request tools. Use the request ID from the OPEN REQUESTS list. When approving grocery_item requests, the item is automatically added to the grocery list.
+- When approving/denying, the requester is automatically notified.
 - Keep responses short (1-3 sentences). Be fun and family-friendly!`;
 
   // Build messages array with history
