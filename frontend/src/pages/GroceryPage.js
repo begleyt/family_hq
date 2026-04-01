@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
+import Avatar from '../components/common/Avatar';
 import {
   Plus, Trash2, Check, X, Ticket, Archive, RotateCcw,
   ChevronDown, ChevronRight, Clock, ShoppingCart
@@ -264,7 +265,7 @@ export default function GroceryPage() {
                         <p className="text-xs text-slate-400">
                           Qty: {item.quantity}
                           {item.requested_by_name
-                            ? <> &middot; requested by {item.requested_by_emoji} {item.requested_by_name}</>
+                            ? <> &middot; requested by <Avatar url={item.requested_by_avatar_url} emoji={item.requested_by_emoji} size="xs" className="inline-block align-middle mx-0.5" /> {item.requested_by_name}</>
                             : <> &middot; by {item.added_by_name}</>
                           }
                         </p>
