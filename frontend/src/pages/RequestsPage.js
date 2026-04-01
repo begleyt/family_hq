@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api';
 import {
-  Plus, X, Send, MessageSquare,
+  Plus, X, Send, MessageSquare, Archive,
   CheckCircle2, XCircle, Clock, Calendar, MapPin, DollarSign
 } from 'lucide-react';
 
@@ -66,6 +66,7 @@ export default function RequestsPage() {
   const [detail, setDetail] = useState(null);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
 
   // Form state
   const [title, setTitle] = useState('');
@@ -101,8 +102,9 @@ export default function RequestsPage() {
     const params = new URLSearchParams();
     if (filterStatus) params.append('status', filterStatus);
     if (filterCategory) params.append('category', filterCategory);
+    if (showArchived) params.append('archived', '1');
     api.get(`/requests?${params}`).then(res => { setRequests(res.data); setLoading(false); });
-  }, [filterStatus, filterCategory]);
+  }, [filterStatus, filterCategory, showArchived]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
@@ -131,6 +133,18 @@ export default function RequestsPage() {
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to create request');
     } finally { setSubmitting(false); }
+  };
+
+  const archiveRequest = async (id) => {
+    await api.patch(`/requests/${id}/archive`);
+    fetchRequests();
+    if (detail?.id === id) setDetail(null);
+  };
+
+  const archiveAllCompleted = async () => {
+    const res = await api.post('/requests/archive-completed');
+    alert(res.data.message);
+    fetchRequests();
   };
 
   const handleStatusChange = async (id, status, extra = {}) => {
@@ -188,6 +202,19 @@ export default function RequestsPage() {
           <option value="">All Categories</option>
           {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>)}
         </select>
+        {isParent && (
+          <>
+            <button onClick={() => setShowArchived(!showArchived)}
+              className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${showArchived ? 'bg-family-500 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}`}>
+              <Archive size={14} className="inline mr-1" />{showArchived ? 'Viewing Archived' : 'Archived'}
+            </button>
+            {!showArchived && (
+              <button onClick={archiveAllCompleted} className="px-3 py-2 rounded-xl text-sm bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-slate-700">
+                Archive Done
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       {/* Request List */}

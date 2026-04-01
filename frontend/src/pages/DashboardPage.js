@@ -292,7 +292,7 @@ export default function DashboardPage() {
               </div>
             ) : (<>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {(showAllMessages ? messages : messages.slice(0, 6)).map((msg, i) => (
+                {(showAllMessages ? messages : messages.slice(0, 3)).map((msg, i) => (
                   <div key={msg.id}
                     draggable={isParent}
                     onDragStart={isParent ? (e) => handleDragStart(e, msg.id) : undefined}
@@ -386,7 +386,7 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
-              {messages.length > 6 && (
+              {messages.length > 3 && (
                 <button onClick={() => setShowAllMessages(!showAllMessages)}
                   className="w-full mt-3 text-sm text-family-500 hover:text-family-600 font-medium py-2 bg-white/50 dark:bg-slate-800/50 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-colors">
                   {showAllMessages ? 'Show less' : `Show all ${messages.length} notes`}

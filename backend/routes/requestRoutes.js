@@ -1,4 +1,5 @@
 const express = require('express');
+const { google } = require('googleapis');
 const { getDb, logActivity } = require('../database/db');
 const { authMiddleware } = require('../middleware/auth');
 
@@ -14,7 +15,7 @@ function notify(userId, title, message, type, requestId) {
 
 // GET /api/requests
 router.get('/', (req, res) => {
-  const { status, category, priority, page = 1, limit = 50 } = req.query;
+  const { status, category, priority, archived, page = 1, limit = 50 } = req.query;
   let sql = `
     SELECT r.*,
       u1.display_name as submitted_by_name, u1.avatar_emoji as submitted_by_emoji,
@@ -25,6 +26,13 @@ router.get('/', (req, res) => {
     WHERE 1=1
   `;
   const params = [];
+
+  // Filter archived
+  if (archived === '1') {
+    sql += ' AND COALESCE(r.archived, 0) = 1';
+  } else {
+    sql += ' AND COALESCE(r.archived, 0) = 0';
+  }
 
   if (req.user.role !== 'parent') {
     sql += ' AND r.submitted_by = ?';
@@ -92,7 +100,7 @@ router.post('/', (req, res) => {
 });
 
 // PUT /api/requests/:id
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   const request = getDb().prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
   if (!request) return res.status(404).json({ error: 'Request not found' });
 
@@ -146,6 +154,36 @@ router.put('/:id', (req, res) => {
       `).run(mealDate, mealType || request.meal_type_requested || 'dinner', request.title, request.description || '', req.user.id);
 
       logActivity(req.user.id, 'planned_meal', 'meal', null, `${request.title} (from request)`);
+    }
+
+    // Ride request → create Google Calendar event if date/time provided
+    if (request.category === 'ride_request' && request.ride_time) {
+      try {
+        const calConfig = getDb().prepare('SELECT * FROM google_calendar_config ORDER BY id DESC LIMIT 1').get();
+        if (calConfig && calConfig.refresh_token) {
+          const oauthClient = new google.auth.OAuth2(calConfig.client_id, calConfig.client_secret, calConfig.redirect_uri);
+          oauthClient.setCredentials({ access_token: calConfig.access_token, refresh_token: calConfig.refresh_token });
+
+          const submitter = getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(request.submitted_by);
+          const rideDate = new Date(request.ride_time);
+          const endDate = new Date(rideDate.getTime() + 60 * 60 * 1000); // 1 hour duration
+
+          const calendar = google.calendar({ version: 'v3', auth: oauthClient });
+          await calendar.events.insert({
+            calendarId: calConfig.calendar_id || 'primary',
+            requestBody: {
+              summary: `Ride: ${submitter?.display_name || 'Someone'} - ${request.title}`,
+              description: request.description || '',
+              location: request.ride_destination || '',
+              start: { dateTime: rideDate.toISOString(), timeZone: 'America/Chicago' },
+              end: { dateTime: endDate.toISOString(), timeZone: 'America/Chicago' },
+            },
+          });
+          logActivity(req.user.id, 'calendar_ride', 'request', request.id, `Ride added to calendar for ${submitter?.display_name}`);
+        }
+      } catch (err) {
+        console.error('Failed to create calendar event for ride:', err.message);
+      }
     }
 
     // Notify the requester
@@ -205,6 +243,23 @@ router.post('/:id/comments', (req, res) => {
 
   logActivity(req.user.id, 'commented', 'request', request.id, `Commented on: ${request.title}`);
   res.status(201).json({ message: 'Comment added' });
+});
+
+// PATCH /api/requests/:id/archive - toggle archive (parent only)
+router.patch('/:id/archive', (req, res) => {
+  if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parents only' });
+  const request = getDb().prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
+  if (!request) return res.status(404).json({ error: 'Request not found' });
+  const newVal = request.archived ? 0 : 1;
+  getDb().prepare('UPDATE requests SET archived = ? WHERE id = ?').run(newVal, req.params.id);
+  res.json({ archived: !!newVal });
+});
+
+// POST /api/requests/archive-completed - archive all completed/denied (parent only)
+router.post('/archive-completed', (req, res) => {
+  if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parents only' });
+  const result = getDb().prepare("UPDATE requests SET archived = 1 WHERE status IN ('approved', 'denied', 'completed') AND COALESCE(archived, 0) = 0").run();
+  res.json({ message: `Archived ${result.changes} requests` });
 });
 
 module.exports = router;

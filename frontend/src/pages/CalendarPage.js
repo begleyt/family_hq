@@ -10,18 +10,28 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
-const EVENT_COLORS = [
-  'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800',
-  'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800',
-  'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800',
-  'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800',
-  'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/40 dark:text-pink-300 dark:border-pink-800',
+const COLOR_OPTIONS = [
+  { name: 'Blue', value: 'blue', classes: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800', dot: 'bg-blue-500' },
+  { name: 'Green', value: 'green', classes: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800', dot: 'bg-emerald-500' },
+  { name: 'Purple', value: 'purple', classes: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800', dot: 'bg-purple-500' },
+  { name: 'Orange', value: 'orange', classes: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800', dot: 'bg-orange-500' },
+  { name: 'Pink', value: 'pink', classes: 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/40 dark:text-pink-300 dark:border-pink-800', dot: 'bg-pink-500' },
+  { name: 'Red', value: 'red', classes: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800', dot: 'bg-red-500' },
+  { name: 'Yellow', value: 'yellow', classes: 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-800', dot: 'bg-yellow-500' },
+  { name: 'Teal', value: 'teal', classes: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-800', dot: 'bg-teal-500' },
+  { name: 'Gray', value: 'gray', classes: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700/40 dark:text-slate-300 dark:border-slate-600', dot: 'bg-slate-500' },
 ];
 
-function getEventColor(id) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash) + id.charCodeAt(i);
-  return EVENT_COLORS[Math.abs(hash) % EVENT_COLORS.length];
+const DEFAULT_COLOR = COLOR_OPTIONS[0];
+
+function loadNameColors() {
+  try {
+    return JSON.parse(localStorage.getItem('family_calendar_colors') || '[]');
+  } catch { return []; }
+}
+
+function saveNameColors(colors) {
+  localStorage.setItem('family_calendar_colors', JSON.stringify(colors));
 }
 
 function formatTime(dateStr) {
@@ -38,6 +48,46 @@ export default function CalendarPage() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState({ configured: false, connected: false });
+
+  // Name-to-color mapping
+  const [nameColors, setNameColors] = useState(loadNameColors);
+  const [showColorConfig, setShowColorConfig] = useState(false);
+  const [newColorName, setNewColorName] = useState('');
+  const [newColorValue, setNewColorValue] = useState('blue');
+
+  const getEventColor = (ev) => {
+    const title = (ev.title || '').toLowerCase();
+    for (const nc of nameColors) {
+      if (title.includes(nc.name.toLowerCase())) {
+        return COLOR_OPTIONS.find(c => c.value === nc.color)?.classes || DEFAULT_COLOR.classes;
+      }
+    }
+    return DEFAULT_COLOR.classes;
+  };
+
+  const getEventDot = (ev) => {
+    const title = (ev.title || '').toLowerCase();
+    for (const nc of nameColors) {
+      if (title.includes(nc.name.toLowerCase())) {
+        return COLOR_OPTIONS.find(c => c.value === nc.color)?.dot || '';
+      }
+    }
+    return '';
+  };
+
+  const addNameColor = () => {
+    if (!newColorName.trim()) return;
+    const updated = [...nameColors.filter(nc => nc.name.toLowerCase() !== newColorName.toLowerCase()), { name: newColorName.trim(), color: newColorValue }];
+    setNameColors(updated);
+    saveNameColors(updated);
+    setNewColorName('');
+  };
+
+  const removeNameColor = (name) => {
+    const updated = nameColors.filter(nc => nc.name !== name);
+    setNameColors(updated);
+    saveNameColors(updated);
+  };
 
   // Config modal
   const [showConfig, setShowConfig] = useState(false);
@@ -221,6 +271,9 @@ export default function CalendarPage() {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-slate-800">Calendar</h1>
         <div className="flex items-center gap-2">
+          <button onClick={() => setShowColorConfig(true)} className="btn-secondary text-sm flex items-center gap-1">
+            {'\u{1F3A8}'} Colors
+          </button>
           {isParent && (
             <button onClick={() => setShowConfig(true)} className="btn-secondary text-sm flex items-center gap-1">
               <Settings size={14} /> Setup
@@ -308,7 +361,7 @@ export default function CalendarPage() {
                   <div className="space-y-0.5">
                     {dayEvents.slice(0, 3).map(ev => (
                       <div key={ev.id} onClick={(e) => { e.stopPropagation(); setSelectedEvent(ev); }}
-                        className={`text-[11px] px-1.5 py-0.5 rounded border truncate cursor-pointer hover:opacity-80 ${getEventColor(ev.id)}`}>
+                        className={`text-[11px] px-1.5 py-0.5 rounded border truncate cursor-pointer hover:opacity-80 ${getEventColor(ev)}`}>
                         {!ev.allDay && <span className="font-medium">{formatTime(ev.start)} </span>}{ev.title}
                       </div>
                     ))}
@@ -348,7 +401,7 @@ export default function CalendarPage() {
                   <div className="space-y-1.5">
                     {dayEvents.map(ev => (
                       <div key={ev.id} onClick={(e) => { e.stopPropagation(); setSelectedEvent(ev); }}
-                        className={`text-xs px-2 py-1.5 rounded-lg border cursor-pointer hover:opacity-80 ${getEventColor(ev.id)}`}>
+                        className={`text-xs px-2 py-1.5 rounded-lg border cursor-pointer hover:opacity-80 ${getEventColor(ev)}`}>
                         <p className="font-medium">{ev.title}</p>
                         <p className="text-[10px] opacity-75 mt-0.5">
                           {ev.allDay ? 'All day' : formatTime(ev.start)}
@@ -513,6 +566,65 @@ export default function CalendarPage() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Name Color Config Modal */}
+      {showColorConfig && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="fixed inset-0 bg-black/30" onClick={() => setShowColorConfig(false)} />
+          <div className="relative bg-white dark:bg-slate-800 rounded-t-2xl md:rounded-2xl w-full md:max-w-md max-h-[85vh] overflow-y-auto p-5 z-50">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">Event Color Coding</h2>
+              <button onClick={() => setShowColorConfig(false)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={20} /></button>
+            </div>
+            <p className="text-sm text-slate-500 mb-3">Events with a name in the title will be color-coded automatically.</p>
+
+            {/* Current mappings */}
+            {nameColors.length > 0 && (
+              <div className="space-y-2 mb-4">
+                {nameColors.map(nc => {
+                  const colorOpt = COLOR_OPTIONS.find(c => c.value === nc.color) || DEFAULT_COLOR;
+                  return (
+                    <div key={nc.name} className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-700 rounded-xl">
+                      <div className={`w-4 h-4 rounded-full ${colorOpt.dot}`} />
+                      <span className="text-sm font-medium flex-1">{nc.name}</span>
+                      <span className={`badge ${colorOpt.classes}`}>{colorOpt.name}</span>
+                      <button onClick={() => removeNameColor(nc.name)} className="text-slate-400 hover:text-red-500"><X size={14} /></button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Add new */}
+            <div className="space-y-2">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Name</label>
+                <input value={newColorName} onChange={e => setNewColorName(e.target.value)}
+                  className="input-field text-sm" placeholder="e.g., Izzy, Soccer, School" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Color</label>
+                <div className="flex flex-wrap gap-2">
+                  {COLOR_OPTIONS.map(c => (
+                    <button key={c.value} onClick={() => setNewColorValue(c.value)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-all ${
+                        newColorValue === c.value ? 'ring-2 ring-offset-1 ring-family-400 ' + c.classes : 'border-transparent ' + c.classes
+                      }`}>
+                      <div className={`w-3 h-3 rounded-full ${c.dot}`} /> {c.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button onClick={addNameColor} className="btn-primary w-full text-sm">Add Color Rule</button>
+            </div>
+
+            <p className="text-xs text-slate-400 mt-4">
+              Tip: Use first names, activity names (Soccer, Piano), or keywords. If an event title contains the name, it gets that color.
+              The first matching rule wins.
+            </p>
           </div>
         </div>
       )}

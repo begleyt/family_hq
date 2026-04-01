@@ -136,6 +136,14 @@ function runMigrations(db) {
     }
   }
 
+  // Add archived column to requests
+  const reqCols3 = db.prepare("PRAGMA table_info(requests)").all().map(c => c.name);
+  if (!reqCols3.includes('archived')) {
+    console.log('Running migration: adding archived to requests...');
+    db.exec('ALTER TABLE requests ADD COLUMN archived INTEGER DEFAULT 0');
+    console.log('Migration complete: archived column added');
+  }
+
   // Add image columns to messages
   const msgCols2 = db.prepare("PRAGMA table_info(messages)").all().map(c => c.name);
   if (!msgCols2.includes('image_url')) {
