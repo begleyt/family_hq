@@ -179,8 +179,16 @@ router.put('/:id', async (req, res) => {
           oauthClient.setCredentials({ access_token: calConfig.access_token, refresh_token: calConfig.refresh_token });
 
           const submitter = getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(request.submitted_by);
-          const rideDate = new Date(request.ride_time);
-          const endDate = new Date(rideDate.getTime() + 60 * 60 * 1000); // 1 hour duration
+
+          // Use ride_time as local time string — don't convert through UTC
+          let rideTimeStr = request.ride_time;
+          if (rideTimeStr && rideTimeStr.split(':').length === 2) rideTimeStr += ':00';
+          const timeParts = rideTimeStr.match(/(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
+          let endTimeStr = rideTimeStr;
+          if (timeParts) {
+            const endHour = (parseInt(timeParts[2]) + 1) % 24;
+            endTimeStr = `${timeParts[1]}T${String(endHour).padStart(2, '0')}:${timeParts[3]}:00`;
+          }
 
           const calendar = google.calendar({ version: 'v3', auth: oauthClient });
           await calendar.events.insert({
@@ -189,8 +197,8 @@ router.put('/:id', async (req, res) => {
               summary: `Ride: ${submitter?.display_name || 'Someone'} - ${request.title}`,
               description: request.description || '',
               location: request.ride_destination || '',
-              start: { dateTime: rideDate.toISOString(), timeZone: 'America/Chicago' },
-              end: { dateTime: endDate.toISOString(), timeZone: 'America/Chicago' },
+              start: { dateTime: rideTimeStr, timeZone: 'America/Chicago' },
+              end: { dateTime: endTimeStr, timeZone: 'America/Chicago' },
             },
           });
           logActivity(req.user.id, 'calendar_ride', 'request', request.id, `Ride added to calendar for ${submitter?.display_name}`);

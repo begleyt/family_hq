@@ -176,8 +176,21 @@ async function executeTool(toolName, toolInput, userId, userRole, displayName) {
             oauthClient.setCredentials({ access_token: calConfig.access_token, refresh_token: calConfig.refresh_token });
 
             const submitter = db.prepare('SELECT display_name FROM users WHERE id = ?').get(req.submitted_by);
-            const rideDate = new Date(req.ride_time);
-            const endDate = new Date(rideDate.getTime() + 60 * 60 * 1000);
+
+            // Parse ride_time as local time string — don't convert through UTC
+            // ride_time comes as "2026-04-03T19:00" or similar
+            let rideTimeStr = req.ride_time;
+            // Ensure it has seconds
+            if (rideTimeStr && !rideTimeStr.includes(':00:')) {
+              if (rideTimeStr.split(':').length === 2) rideTimeStr += ':00';
+            }
+            // Build end time (1 hour later)
+            const timeParts = rideTimeStr.match(/(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
+            let endTimeStr = rideTimeStr;
+            if (timeParts) {
+              const endHour = (parseInt(timeParts[2]) + 1) % 24;
+              endTimeStr = `${timeParts[1]}T${String(endHour).padStart(2, '0')}:${timeParts[3]}:00`;
+            }
 
             const calendar = google.calendar({ version: 'v3', auth: oauthClient });
             await calendar.events.insert({
@@ -186,8 +199,8 @@ async function executeTool(toolName, toolInput, userId, userRole, displayName) {
                 summary: `Ride: ${submitter?.display_name || 'Someone'} - ${req.title}`,
                 description: req.description || '',
                 location: req.ride_destination || '',
-                start: { dateTime: rideDate.toISOString(), timeZone: 'America/Chicago' },
-                end: { dateTime: endDate.toISOString(), timeZone: 'America/Chicago' },
+                start: { dateTime: rideTimeStr, timeZone: 'America/Chicago' },
+                end: { dateTime: endTimeStr, timeZone: 'America/Chicago' },
               },
             });
             calendarAdded = true;
@@ -244,7 +257,7 @@ const AI_TOOLS = [
         priority: { type: 'string', enum: ['low', 'normal', 'high', 'urgent'], description: 'Priority level' },
         description: { type: 'string', description: 'Additional details' },
         ride_destination: { type: 'string', description: 'For ride_request: where to (e.g., "Jake\'s house", "Soccer field")' },
-        ride_time: { type: 'string', description: 'For ride_request: date and time in ISO format (e.g., "2026-04-02T17:00")' },
+        ride_time: { type: 'string', description: 'For ride_request: date and time as LOCAL time (Central timezone), format YYYY-MM-DDTHH:MM (e.g., "2026-04-03T19:00" for 7pm on April 3rd). Do NOT adjust for timezone — use the exact time the user says.' },
         allowance_amount: { type: 'string', description: 'For allowance: dollar amount (e.g., "10.00")' },
         grocery_category: { type: 'string', enum: ['produce', 'dairy', 'meat', 'bakery', 'frozen', 'pantry', 'beverages', 'snacks', 'household', 'other'], description: 'For grocery_item: aisle/category' },
         grocery_quantity: { type: 'string', description: 'For grocery_item: quantity (e.g., "2", "1 gallon")' },
