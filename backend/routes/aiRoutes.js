@@ -91,10 +91,11 @@ async function getFamilyContext(userId, userRole) {
   const calEvents = await getCalendarEvents();
   if (calEvents.length > 0) {
     ctx += `UPCOMING CALENDAR EVENTS (next 7 days):\n`;
+    const tz = 'America/Chicago';
     calEvents.forEach(e => {
       const dateStr = e.allDay
-        ? new Date(e.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' (all day)'
-        : new Date(e.date).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+        ? new Date(e.date).toLocaleDateString('en-US', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric' }) + ' (all day)'
+        : new Date(e.date).toLocaleString('en-US', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
       ctx += `- ${dateStr}: ${e.title}${e.location ? ` @ ${e.location}` : ''}\n`;
     });
   } else {
