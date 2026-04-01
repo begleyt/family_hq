@@ -94,7 +94,7 @@ async function uploadToImmich(fileBuffer, filename, mimetype) {
 router.get('/', (req, res) => {
   const config = getImmichConfig();
   const messages = getDb().prepare(`
-    SELECT m.*, u.display_name, u.avatar_emoji, u.avatar_color, u.role,
+    SELECT m.*, u.display_name, u.avatar_emoji, u.avatar_color, u.avatar_url, u.role,
       (SELECT COUNT(*) FROM message_comments mc WHERE mc.message_id = m.id) as comment_count
     FROM messages m
     JOIN users u ON m.user_id = u.id
@@ -120,7 +120,7 @@ router.get('/', (req, res) => {
 // GET /api/messages/:id
 router.get('/:id', (req, res) => {
   const message = getDb().prepare(`
-    SELECT m.*, u.display_name, u.avatar_emoji, u.avatar_color, u.role
+    SELECT m.*, u.display_name, u.avatar_emoji, u.avatar_color, u.avatar_url, u.role
     FROM messages m JOIN users u ON m.user_id = u.id WHERE m.id = ?
   `).get(req.params.id);
   if (!message) return res.status(404).json({ error: 'Message not found' });

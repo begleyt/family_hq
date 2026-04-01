@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
+import Avatar from '../components/common/Avatar';
 import {
   Ticket, ShoppingCart, UtensilsCrossed, Users, Clock, CalendarDays, Camera,
   AlertCircle, ChevronRight, MessageCircle, Send, Pin, MapPin, BarChart3, Image,
@@ -316,8 +317,8 @@ export default function DashboardPage() {
                       {isParent && (
                         <GripVertical size={14} className="text-slate-400 cursor-grab active:cursor-grabbing shrink-0 -ml-1" />
                       )}
-                      <span className="text-sm">{msg.avatar_emoji}</span>
-                      <span className="text-xs font-bold text-slate-700">{msg.display_name}</span>
+                      <Avatar url={msg.avatar_url} emoji={msg.avatar_emoji} color={msg.avatar_color} size="md" />
+                      <span className="text-sm font-bold text-slate-700">{msg.display_name}</span>
                     </div>
 
                     {editingMsg === msg.id ? (
