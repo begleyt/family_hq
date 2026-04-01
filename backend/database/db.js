@@ -160,6 +160,14 @@ function runMigrations(db) {
     console.log('Migration complete: for_recipe added');
   }
 
+  // Add on_hand to grocery_items
+  const groceryCols3 = db.prepare("PRAGMA table_info(grocery_items)").all().map(c => c.name);
+  if (!groceryCols3.includes('on_hand')) {
+    console.log('Running migration: adding on_hand to grocery_items...');
+    db.exec('ALTER TABLE grocery_items ADD COLUMN on_hand INTEGER DEFAULT 0');
+    console.log('Migration complete: on_hand added');
+  }
+
   // Add recipe_id to meals
   const mealCols = db.prepare("PRAGMA table_info(meals)").all().map(c => c.name);
   if (!mealCols.includes('recipe_id')) {

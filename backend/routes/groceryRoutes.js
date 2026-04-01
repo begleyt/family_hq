@@ -25,7 +25,7 @@ router.get('/', (req, res) => {
     FROM grocery_items g
     LEFT JOIN users u ON g.added_by = u.id
     LEFT JOIN users u2 ON g.requested_by = u2.id
-    ORDER BY g.is_checked ASC, g.category ASC, g.created_at DESC
+    ORDER BY g.is_checked ASC, COALESCE(g.on_hand, 0) ASC, g.category ASC, g.created_at DESC
   `).all();
   res.json(items);
 });
@@ -176,6 +176,15 @@ router.patch('/:id/check', roleCheck('parent'), (req, res) => {
   `).run(newChecked, newChecked ? req.user.id : null, req.params.id);
 
   res.json({ isChecked: !!newChecked });
+});
+
+// PATCH /api/grocery/:id/on-hand - mark as already have it
+router.patch('/:id/on-hand', roleCheck('parent'), (req, res) => {
+  const item = getDb().prepare('SELECT * FROM grocery_items WHERE id = ?').get(req.params.id);
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+  const newVal = item.on_hand ? 0 : 1;
+  getDb().prepare('UPDATE grocery_items SET on_hand = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newVal, req.params.id);
+  res.json({ onHand: !!newVal });
 });
 
 // DELETE /api/grocery/:id - parent only

@@ -131,6 +131,11 @@ export default function GroceryPage() {
     fetchItems();
   };
 
+  const handleOnHand = async (id) => {
+    await api.patch(`/grocery/${id}/on-hand`);
+    fetchItems();
+  };
+
   const handleDelete = async (id) => {
     await api.delete(`/grocery/${id}`);
     fetchItems();
@@ -172,11 +177,12 @@ export default function GroceryPage() {
     fetchItems();
   };
 
-  const unchecked = items.filter(i => !i.is_checked);
+  const needToBuy = items.filter(i => !i.is_checked && !i.on_hand);
+  const onHand = items.filter(i => !i.is_checked && i.on_hand);
   const checked = items.filter(i => i.is_checked);
 
   const grouped = {};
-  unchecked.forEach(item => {
+  needToBuy.forEach(item => {
     if (!grouped[item.category]) grouped[item.category] = [];
     grouped[item.category].push(item);
   });
@@ -188,7 +194,7 @@ export default function GroceryPage() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Grocery List</h1>
-          <p className="text-sm text-slate-500">{unchecked.length} items to get</p>
+          <p className="text-sm text-slate-500">{needToBuy.length} items to get{onHand.length > 0 ? `, ${onHand.length} on hand` : ''}</p>
         </div>
         {isParent && (
           <div className="flex items-center gap-2">
@@ -291,6 +297,9 @@ export default function GroceryPage() {
                       </div>
                       {isParent && (
                         <div className="flex items-center gap-0.5">
+                          <button onClick={() => handleOnHand(item.id)} title="Already have it" className="p-1.5 text-slate-300 hover:text-emerald-500 transition-colors">
+                            <Check size={14} />
+                          </button>
                           <button onClick={() => openEdit(item)} className="p-1.5 text-slate-300 hover:text-family-500 transition-colors">
                             <Edit size={14} />
                           </button>
@@ -305,6 +314,38 @@ export default function GroceryPage() {
               </div>
             );
           })}
+
+          {onHand.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2 px-1">
+                <span className="text-sm">{'\u{1F3E0}'}</span>
+                <h3 className="text-sm font-semibold text-emerald-600">Already Have ({onHand.length})</h3>
+              </div>
+              <div className="space-y-1">
+                {onHand.map(item => (
+                  <div key={item.id} className="card flex items-center gap-3 py-3 bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30">
+                    {isParent ? (
+                      <button onClick={() => handleOnHand(item.id)} title="Move back to list"
+                        className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0 text-emerald-600">
+                        {'\u{1F3E0}'}
+                      </button>
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 text-xs">{'\u{1F3E0}'}</div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-emerald-700 dark:text-emerald-300">{item.name}</p>
+                      <p className="text-xs text-emerald-500/70">Qty: {item.quantity}{item.for_recipe && <> &middot; for {item.for_recipe}</>}</p>
+                    </div>
+                    {isParent && (
+                      <button onClick={() => handleDelete(item.id)} className="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {checked.length > 0 && (
             <div>
