@@ -57,8 +57,20 @@ async function getCalendarEvents() {
 // Gather family context
 async function getFamilyContext(userId, userRole) {
   const db = getDb();
-  const today = new Date().toISOString().split('T')[0];
-  const dayName = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const tz = 'America/Chicago';
+  const now = new Date();
+  const today = now.toLocaleDateString('en-CA', { timeZone: tz }); // YYYY-MM-DD format
+  const dayName = now.toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  // Build explicit date reference for upcoming days so AI doesn't miscalculate
+  const upcomingDays = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toLocaleDateString('en-CA', { timeZone: tz });
+    const dayLabel = d.toLocaleDateString('en-US', { timeZone: tz, weekday: 'long' });
+    upcomingDays.push(`${dayLabel} = ${dateStr}`);
+  }
 
   const members = db.prepare("SELECT display_name, role FROM users WHERE is_active = 1 AND role != 'dashboard'").all();
   const meals = db.prepare('SELECT meal_type, title, description FROM meals WHERE meal_date = ?').all(today);
@@ -79,7 +91,7 @@ async function getFamilyContext(userId, userRole) {
   const messages = db.prepare('SELECT m.content, u.display_name FROM messages m JOIN users u ON m.user_id = u.id ORDER BY m.created_at DESC LIMIT 5').all();
   const polls = db.prepare("SELECT title, type, restaurant_name FROM polls WHERE status = 'open'").all();
 
-  let ctx = `Today is ${dayName}.\n\nFAMILY: ${members.map(m => `${m.display_name} (${m.role})`).join(', ')}\n\n`;
+  let ctx = `Today is ${dayName} (${today}).\nDATE REFERENCE: ${upcomingDays.join(', ')}\nIMPORTANT: When the user says a day of the week, use the DATE REFERENCE above to get the correct date. Do NOT calculate dates yourself.\n\nFAMILY: ${members.map(m => `${m.display_name} (${m.role})`).join(', ')}\n\n`;
   ctx += `TODAY'S MEALS: ${meals.length === 0 ? 'None planned' : meals.map(m => `${m.meal_type}: ${m.title}`).join(', ')}\n\n`;
   ctx += `WEEK MEALS:\n${weekMeals.length === 0 ? 'None' : weekMeals.map(m => `${m.meal_date} ${m.meal_type}: ${m.title}`).join('\n')}\n\n`;
   ctx += `GROCERY LIST (${groceryItems.length} items): ${groceryItems.length === 0 ? 'Empty' : groceryItems.map(g => `${g.name} x${g.quantity}`).join(', ')}\n\n`;
