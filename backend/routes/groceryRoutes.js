@@ -21,10 +21,12 @@ function trackHistory(name, category, quantity) {
 router.get('/', (req, res) => {
   const items = getDb().prepare(`
     SELECT g.*, u.display_name as added_by_name, u.avatar_emoji as added_by_emoji, u.avatar_url as added_by_avatar_url,
-      u2.display_name as requested_by_name, u2.avatar_emoji as requested_by_emoji, u2.avatar_url as requested_by_avatar_url
+      u2.display_name as requested_by_name, u2.avatar_emoji as requested_by_emoji, u2.avatar_url as requested_by_avatar_url,
+      p.id as pantry_id, p.quantity as pantry_quantity, p.location as pantry_location
     FROM grocery_items g
     LEFT JOIN users u ON g.added_by = u.id
     LEFT JOIN users u2 ON g.requested_by = u2.id
+    LEFT JOIN pantry_items p ON LOWER(g.name) = LOWER(p.name)
     ORDER BY g.is_checked ASC, COALESCE(g.on_hand, 0) ASC, g.category ASC, g.created_at DESC
   `).all();
   res.json(items);

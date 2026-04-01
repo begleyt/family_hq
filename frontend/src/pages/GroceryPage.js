@@ -293,6 +293,7 @@ export default function GroceryPage() {
                             : <> &middot; by {item.added_by_name}</>
                           }
                           {item.for_recipe && <> &middot; <span className="text-family-500">for {item.for_recipe}</span></>}
+                          {item.pantry_id && <> &middot; <span className="text-amber-500">{'\u{1F3E0}'} in {item.pantry_location} ({item.pantry_quantity})</span></>}
                         </p>
                       </div>
                       {isParent && (
