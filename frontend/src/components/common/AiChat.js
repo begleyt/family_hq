@@ -266,11 +266,15 @@ export default function AiChat() {
                 <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
                   className="input-field text-sm flex-1 py-2" placeholder={photoData ? "What's in this photo?" : "Ask anything..."}
                   disabled={loading} />
-                <input ref={photoRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoSelect} className="hidden" />
-                <button type="button" onClick={() => photoRef.current?.click()}
-                  className={`btn-secondary px-2.5 py-2 ${photoData ? 'ring-2 ring-family-400' : ''}`} disabled={loading}>
-                  <Camera size={16} />
-                </button>
+                {isParent && (
+                  <>
+                    <input ref={photoRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoSelect} className="hidden" />
+                    <button type="button" onClick={() => photoRef.current?.click()}
+                      className={`btn-secondary px-2.5 py-2 ${photoData ? 'ring-2 ring-family-400' : ''}`} disabled={loading}>
+                      <Camera size={16} />
+                    </button>
+                  </>
+                )}
                 <button type="submit" disabled={loading || (!input.trim() && !photoData)}
                   className="btn-primary px-3 py-2 disabled:opacity-40">
                   <Send size={16} />
