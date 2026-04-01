@@ -473,7 +473,10 @@ export default function CalendarPage() {
                           {dayMeals.map(m => (
                             <div key={m.id} className="flex items-start gap-1">
                               <span className="text-[11px] mt-0.5">{MEAL_EMOJI[m.meal_type] || '\u{1F37D}'}</span>
-                              <span className="text-[11px] text-slate-600 dark:text-slate-300 leading-tight">{m.title}</span>
+                              <div className="min-w-0">
+                                <span className="text-[10px] text-slate-400 capitalize">{m.meal_type}</span>
+                                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-tight truncate">{m.title}</p>
+                              </div>
                             </div>
                           ))}
                         </div>
