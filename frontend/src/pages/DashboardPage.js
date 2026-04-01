@@ -306,7 +306,7 @@ export default function DashboardPage() {
                     onClick={() => { if (expandedMsg !== msg.id) toggleComments(msg.id); }}>
 
                     {/* Pin icon for pinned messages */}
-                    {msg.pinned && (
+                    {!!msg.pinned && (
                       <div className="absolute -top-2 left-1/2 -translate-x-1/2">
                         <div className="w-5 h-5 bg-red-400 rounded-full border-2 border-red-500 shadow-sm" />
                       </div>

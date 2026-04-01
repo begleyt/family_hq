@@ -169,6 +169,7 @@ export default function RequestsPage() {
     handleStatusChange(detail.id, 'approved', { mealDate, mealType });
   };
 
+  const isParent = user.role === 'parent';
   const isDashboard = user.role === 'dashboard';
   const getCategoryEmoji = (cat) => CATEGORIES.find(c => c.value === cat)?.emoji || '\u{1F4CB}';
   const getFormTitle = () => {

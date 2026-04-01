@@ -55,24 +55,33 @@ export default function CalendarPage() {
   const [newColorName, setNewColorName] = useState('');
   const [newColorValue, setNewColorValue] = useState('blue');
 
+  // Auto-detect names from event titles and assign consistent colors
+  const getNameFromTitle = (title) => {
+    const t = (title || '').toLowerCase();
+    // First check manual color rules
+    for (const nc of nameColors) {
+      if (t.includes(nc.name.toLowerCase())) return nc.name.toLowerCase();
+    }
+    // Auto-detect: use first word before common separators (-, :, @)
+    const match = t.match(/^([a-z]+)[\s\-:]/);
+    if (match && match[1].length >= 2) return match[1];
+    // Fallback: hash the whole title
+    return t;
+  };
+
   const getEventColor = (ev) => {
     const title = (ev.title || '').toLowerCase();
+    // Check manual rules first
     for (const nc of nameColors) {
       if (title.includes(nc.name.toLowerCase())) {
         return COLOR_OPTIONS.find(c => c.value === nc.color)?.classes || DEFAULT_COLOR.classes;
       }
     }
-    return DEFAULT_COLOR.classes;
-  };
-
-  const getEventDot = (ev) => {
-    const title = (ev.title || '').toLowerCase();
-    for (const nc of nameColors) {
-      if (title.includes(nc.name.toLowerCase())) {
-        return COLOR_OPTIONS.find(c => c.value === nc.color)?.dot || '';
-      }
-    }
-    return '';
+    // Auto-assign by name/keyword — consistent hash-based color
+    const name = getNameFromTitle(ev.title);
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i);
+    return COLOR_OPTIONS[Math.abs(hash) % COLOR_OPTIONS.length].classes;
   };
 
   const addNameColor = () => {
