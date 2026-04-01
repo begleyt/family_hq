@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import { Plus, X, RotateCcw, UserX, UserCheck, Edit, Camera } from 'lucide-react';
 import Avatar from '../components/common/Avatar';
+import ImageCropper from '../components/common/ImageCropper';
 
 const ROLES = [
   { value: 'parent', label: 'Parent', emoji: '\u{1F9D1}' },
@@ -30,6 +31,8 @@ export default function AdminUsersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [resetId, setResetId] = useState(null);
+  const [cropFile, setCropFile] = useState(null);
+  const [cropUserId, setCropUserId] = useState(null);
   const [resetPw, setResetPw] = useState('');
 
   // Form state
@@ -115,23 +118,10 @@ export default function AdminUsersPage() {
             <div className="relative group cursor-pointer shrink-0" onClick={() => {
               const input = document.createElement('input');
               input.type = 'file'; input.accept = 'image/*';
-              input.onchange = async (e) => {
+              input.onchange = (e) => {
                 const file = e.target.files[0]; if (!file) return;
-                const img = new window.Image();
-                img.onload = () => {
-                  const canvas = document.createElement('canvas');
-                  const max = 300; let w = img.width, h = img.height;
-                  if (w > max) { h = (h * max) / w; w = max; }
-                  canvas.width = w; canvas.height = h;
-                  canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                  canvas.toBlob(async (blob) => {
-                    const fd = new FormData();
-                    fd.append('avatar', new File([blob], 'avatar.jpg', { type: 'image/jpeg' }));
-                    await api.post(`/users/${u.id}/avatar`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                    fetchUsers();
-                  }, 'image/jpeg', 0.8);
-                };
-                img.src = URL.createObjectURL(file);
+                setCropFile(file);
+                setCropUserId(u.id);
               };
               input.click();
             }}>
@@ -268,6 +258,22 @@ export default function AdminUsersPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Image Cropper for user avatars */}
+      {cropFile && (
+        <ImageCropper
+          imageFile={cropFile}
+          onSave={async (croppedFile) => {
+            setCropFile(null);
+            const fd = new FormData();
+            fd.append('avatar', croppedFile);
+            await api.post(`/users/${cropUserId}/avatar`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+            fetchUsers();
+          }}
+          onCancel={() => { setCropFile(null); setCropUserId(null); }}
+          size={300}
+        />
       )}
     </div>
   );

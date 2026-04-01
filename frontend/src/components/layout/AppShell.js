@@ -8,6 +8,7 @@ import {
   Users, LogOut, Menu, X, Bell, CheckCheck, Moon, Sun, Camera
 } from 'lucide-react';
 import Avatar from '../common/Avatar';
+import ImageCropper from '../common/ImageCropper';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -36,30 +37,23 @@ export default function AppShell({ children }) {
   const { user, logout, updateUser } = useAuth();
   const { dark, toggle: toggleDark } = useTheme();
   const avatarInputRef = React.useRef(null);
+  const [cropFile, setCropFile] = React.useState(null);
 
-  const handleAvatarUpload = async (e) => {
+  const handleAvatarSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    // Compress
-    const img = new window.Image();
-    img.onload = async () => {
-      const canvas = document.createElement('canvas');
-      const max = 300;
-      let w = img.width, h = img.height;
-      if (w > max) { h = (h * max) / w; w = max; }
-      if (h > max) { w = (w * max) / h; h = max; }
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      canvas.toBlob(async (blob) => {
-        const formData = new FormData();
-        formData.append('avatar', new File([blob], 'avatar.jpg', { type: 'image/jpeg' }));
-        try {
-          const res = await api.post('/users/me/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-          updateUser({ avatarUrl: res.data.avatarUrl });
-        } catch (err) { alert('Upload failed'); }
-      }, 'image/jpeg', 0.8);
-    };
-    img.src = URL.createObjectURL(file);
+    setCropFile(file);
+    e.target.value = '';
+  };
+
+  const handleCropSave = async (croppedFile) => {
+    setCropFile(null);
+    const formData = new FormData();
+    formData.append('avatar', croppedFile);
+    try {
+      const res = await api.post('/users/me/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      updateUser({ avatarUrl: res.data.avatarUrl });
+    } catch (err) { alert('Upload failed'); }
   };
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -238,7 +232,7 @@ export default function AppShell({ children }) {
               <Camera size={14} className="text-white" />
             </div>
           </div>
-          <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+          <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarSelect} className="hidden" />
           <div>
             <p className="font-semibold text-sm">{user?.displayName}</p>
             <p className="text-xs text-slate-500 capitalize">{user?.role}</p>
@@ -273,6 +267,16 @@ export default function AppShell({ children }) {
         {navItems.map((item) => <MobileNavItem key={item.to} {...item} />)}
         {user?.role === 'parent' && <MobileNavItem to="/admin/users" icon={Users} label="Family" />}
       </nav>
+
+      {/* Image Cropper Modal */}
+      {cropFile && (
+        <ImageCropper
+          imageFile={cropFile}
+          onSave={handleCropSave}
+          onCancel={() => setCropFile(null)}
+          size={300}
+        />
+      )}
     </div>
   );
 }
