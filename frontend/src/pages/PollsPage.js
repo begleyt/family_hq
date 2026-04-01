@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
+import Avatar from '../components/common/Avatar';
 import {
   Plus, X, BarChart3, UtensilsCrossed, Check, Lock,
   Unlock, Trash2, Users, ChevronRight, Send, User, ChevronDown
@@ -305,7 +306,7 @@ export default function PollsPage() {
                           <div className="relative flex gap-1 mt-1.5 flex-wrap">
                             {detail.voters.filter(v => v.option_id === opt.id).map((v, i) => (
                               <span key={i} className="text-xs bg-white/60 dark:bg-slate-700/60 rounded-full px-2 py-0.5">
-                                {v.avatar_emoji} {v.display_name}
+                                <Avatar url={v.avatar_url} emoji={v.avatar_emoji} size="xs" className="inline-block" /> {v.display_name}
                               </span>
                             ))}
                           </div>
@@ -403,7 +404,7 @@ export default function PollsPage() {
                       {detail.orders.map(order => (
                         <div key={order.id} className="bg-slate-50 dark:bg-slate-700 rounded-xl p-3 relative group">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm">{order.avatar_emoji || '\u{1F464}'}</span>
+                            <Avatar url={order.avatar_url} emoji={order.avatar_emoji || '\u{1F464}'} size="sm" />
                             <span className="text-sm font-semibold">{order.display_name || order.guest_name || 'Guest'}</span>
                             {order.guest_name && <span className="badge bg-slate-200 text-slate-600 text-[10px]">Guest</span>}
                             {order.entered_by_name && (

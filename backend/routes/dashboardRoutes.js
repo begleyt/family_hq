@@ -33,7 +33,7 @@ router.get('/', (req, res) => {
 
   // Recent activity
   const recentActivity = db.prepare(`
-    SELECT a.*, u.display_name, u.avatar_emoji
+    SELECT a.*, u.display_name, u.avatar_emoji, u.avatar_url
     FROM activity_log a
     JOIN users u ON a.user_id = u.id
     ORDER BY a.created_at DESC

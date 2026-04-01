@@ -365,7 +365,7 @@ export default function DashboardPage() {
                       <div className="mt-3 pt-2 border-t border-black/10 space-y-2" onClick={e => e.stopPropagation()}>
                         {(msgComments[msg.id] || []).map(c => (
                           <div key={c.id} className="flex items-start gap-1.5 bg-white/40 rounded-lg p-2">
-                            <span className="text-xs">{c.avatar_emoji}</span>
+                            <Avatar url={c.avatar_url} emoji={c.avatar_emoji} size="xs" />
                             <div className="flex-1 min-w-0">
                               <span className="text-[10px] font-bold">{c.display_name}</span>
                               <p className="text-xs text-slate-600">{c.content}</p>
@@ -508,7 +508,7 @@ export default function DashboardPage() {
               <div className="space-y-2">
                 {recentActivity.slice(0, 8).map(act => (
                   <div key={act.id} className="flex items-center gap-3 py-1.5">
-                    <span className="text-sm">{act.avatar_emoji}</span>
+                    <Avatar url={act.avatar_url} emoji={act.avatar_emoji} size="xs" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm truncate"><span className="font-medium">{act.display_name}</span>{' '}<span className="text-slate-500">{act.details || act.action}</span></p>
                     </div>

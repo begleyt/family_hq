@@ -126,7 +126,7 @@ router.get('/:id', (req, res) => {
   if (!message) return res.status(404).json({ error: 'Message not found' });
 
   const comments = getDb().prepare(`
-    SELECT mc.*, u.display_name, u.avatar_emoji, u.role
+    SELECT mc.*, u.display_name, u.avatar_emoji, u.avatar_url, u.role
     FROM message_comments mc
     JOIN users u ON mc.user_id = u.id
     WHERE mc.message_id = ?

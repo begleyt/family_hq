@@ -10,7 +10,7 @@ router.use(authMiddleware);
 router.get('/', (req, res) => {
   const { status } = req.query;
   let sql = `
-    SELECT p.*, u.display_name as created_by_name, u.avatar_emoji as created_by_emoji,
+    SELECT p.*, u.display_name as created_by_name, u.avatar_emoji as created_by_emoji, u.avatar_url as created_by_avatar_url,
       (SELECT COUNT(DISTINCT pv.user_id) FROM poll_votes pv WHERE pv.poll_id = p.id) as voter_count,
       (SELECT COUNT(*) FROM food_orders fo WHERE fo.poll_id = p.id) as order_count
     FROM polls p
@@ -26,7 +26,7 @@ router.get('/', (req, res) => {
 // GET /api/polls/:id - get poll with options, votes, or food orders
 router.get('/:id', (req, res) => {
   const poll = getDb().prepare(`
-    SELECT p.*, u.display_name as created_by_name, u.avatar_emoji as created_by_emoji
+    SELECT p.*, u.display_name as created_by_name, u.avatar_emoji as created_by_emoji, u.avatar_url as created_by_avatar_url
     FROM polls p JOIN users u ON p.created_by = u.id WHERE p.id = ?
   `).get(req.params.id);
   if (!poll) return res.status(404).json({ error: 'Poll not found' });
@@ -43,7 +43,7 @@ router.get('/:id', (req, res) => {
       .all(req.params.id, req.user.id).map(v => v.option_id);
 
     const voters = getDb().prepare(`
-      SELECT pv.option_id, u.display_name, u.avatar_emoji
+      Select pv.option_id, u.display_name, u.avatar_emoji, u.avatar_url
       FROM poll_votes pv JOIN users u ON pv.user_id = u.id
       WHERE pv.poll_id = ?
     `).all(req.params.id);
@@ -54,7 +54,7 @@ router.get('/:id', (req, res) => {
   } else {
     // Food order
     const orders = getDb().prepare(`
-      SELECT fo.*, u.display_name, u.avatar_emoji, u2.display_name as entered_by_name
+      SELECT fo.*, u.display_name, u.avatar_emoji, u.avatar_url, u2.display_name as entered_by_name
       FROM food_orders fo
       LEFT JOIN users u ON fo.user_id = u.id
       LEFT JOIN users u2 ON fo.entered_by = u2.id
@@ -62,7 +62,7 @@ router.get('/:id', (req, res) => {
       ORDER BY fo.created_at ASC
     `).all(req.params.id);
 
-    const allUsers = getDb().prepare("SELECT id, display_name, avatar_emoji, role FROM users WHERE is_active = 1 AND role != 'dashboard'").all();
+    const allUsers = getDb().prepare("SELECT id, display_name, avatar_emoji, avatar_url, role FROM users WHERE is_active = 1 AND role != 'dashboard'").all();
 
     res.json({ ...poll, orders, allUsers });
   }
