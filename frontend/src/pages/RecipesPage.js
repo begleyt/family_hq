@@ -1,0 +1,233 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import api from '../api';
+import { Plus, X, Search, ChefHat, Clock, Users, Tag, ExternalLink, Edit, Trash2 } from 'lucide-react';
+
+export default function RecipesPage() {
+  const { user } = useAuth();
+  const isParent = user.role === 'parent';
+  const [recipes, setRecipes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [detail, setDetail] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState(null);
+
+  // Form
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [ingredients, setIngredients] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const [prepTime, setPrepTime] = useState('');
+  const [cookTime, setCookTime] = useState('');
+  const [servings, setServings] = useState('');
+  const [tags, setTags] = useState('');
+  const [sourceUrl, setSourceUrl] = useState('');
+
+  const fetchRecipes = () => {
+    const params = search ? `?search=${encodeURIComponent(search)}` : '';
+    api.get(`/recipes${params}`).then(res => { setRecipes(res.data); setLoading(false); });
+  };
+
+  useEffect(() => { fetchRecipes(); }, [search]);
+
+  const resetForm = () => {
+    setTitle(''); setDescription(''); setIngredients(''); setInstructions('');
+    setPrepTime(''); setCookTime(''); setServings(''); setTags(''); setSourceUrl('');
+    setEditId(null);
+  };
+
+  const openEdit = (r) => {
+    setTitle(r.title); setDescription(r.description || ''); setIngredients(r.ingredients || '');
+    setInstructions(r.instructions || ''); setPrepTime(r.prep_time || ''); setCookTime(r.cook_time || '');
+    setServings(r.servings || ''); setTags(r.tags || ''); setSourceUrl(r.source_url || '');
+    setEditId(r.id); setShowForm(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const body = { title, description, ingredients, instructions, prepTime, cookTime, servings, tags, sourceUrl };
+    if (editId) {
+      await api.put(`/recipes/${editId}`, body);
+    } else {
+      await api.post('/recipes', body);
+    }
+    resetForm(); setShowForm(false); fetchRecipes();
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this recipe?')) return;
+    await api.delete(`/recipes/${id}`);
+    setDetail(null); fetchRecipes();
+  };
+
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-family-300 border-t-family-600 rounded-full" /></div>;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold text-slate-800">Recipe Book</h1>
+        {isParent && (
+          <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary flex items-center gap-2 text-sm">
+            <Plus size={18} /> Add Recipe
+          </button>
+        )}
+      </div>
+
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          className="input-field pl-10" placeholder="Search recipes, ingredients, tags..." />
+      </div>
+
+      {/* Recipe Grid */}
+      {recipes.length === 0 ? (
+        <div className="card text-center py-12">
+          <ChefHat size={40} className="mx-auto mb-3 text-slate-300" />
+          <p className="text-slate-500">{search ? 'No recipes found' : 'Recipe book is empty'}</p>
+          {isParent && !search && <p className="text-xs text-slate-400 mt-1">Add recipes manually or ask the AI assistant to create them!</p>}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {recipes.map(r => (
+            <div key={r.id} onClick={() => setDetail(r)} className="card cursor-pointer hover:shadow-md transition-shadow">
+              <h3 className="font-semibold text-sm mb-1">{r.title}</h3>
+              {r.description && <p className="text-xs text-slate-500 mb-2 line-clamp-2">{r.description}</p>}
+              <div className="flex flex-wrap gap-2 text-xs text-slate-400">
+                {r.prep_time && <span className="flex items-center gap-1"><Clock size={12} /> Prep: {r.prep_time}</span>}
+                {r.cook_time && <span className="flex items-center gap-1"><Clock size={12} /> Cook: {r.cook_time}</span>}
+                {r.servings && <span className="flex items-center gap-1"><Users size={12} /> {r.servings}</span>}
+              </div>
+              {r.tags && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {r.tags.split(',').map((t, i) => (
+                    <span key={i} className="badge bg-family-100 text-family-600 dark:bg-family-900/30 dark:text-family-300 text-[10px]">{t.trim()}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {detail && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="fixed inset-0 bg-black/30" onClick={() => setDetail(null)} />
+          <div className="relative bg-white dark:bg-slate-800 rounded-t-2xl md:rounded-2xl w-full md:max-w-lg max-h-[90vh] overflow-y-auto z-50">
+            <div className="sticky top-0 bg-white dark:bg-slate-800 p-5 pb-3 border-b border-slate-100 dark:border-slate-700 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold">{detail.title}</h2>
+                <div className="flex items-center gap-1">
+                  {isParent && <button onClick={() => { openEdit(detail); setDetail(null); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400"><Edit size={16} /></button>}
+                  {isParent && <button onClick={() => handleDelete(detail.id)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-red-400"><Trash2 size={16} /></button>}
+                  <button onClick={() => setDetail(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={20} /></button>
+                </div>
+              </div>
+              {detail.description && <p className="text-sm text-slate-500 mt-1">{detail.description}</p>}
+              <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-400">
+                {detail.prep_time && <span className="flex items-center gap-1"><Clock size={12} /> Prep: {detail.prep_time}</span>}
+                {detail.cook_time && <span className="flex items-center gap-1"><Clock size={12} /> Cook: {detail.cook_time}</span>}
+                {detail.servings && <span className="flex items-center gap-1"><Users size={12} /> Serves {detail.servings}</span>}
+              </div>
+            </div>
+            <div className="p-5 space-y-4">
+              {detail.ingredients && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">Ingredients</h3>
+                  <div className="bg-slate-50 dark:bg-slate-700 rounded-xl p-3">
+                    {detail.ingredients.split('\n').map((line, i) => (
+                      <p key={i} className="text-sm text-slate-600 dark:text-slate-300 py-0.5">{line.startsWith('-') ? line : `- ${line}`}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {detail.instructions && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">Instructions</h3>
+                  <div className="space-y-2">
+                    {detail.instructions.split('\n').filter(l => l.trim()).map((line, i) => (
+                      <div key={i} className="flex gap-3">
+                        <span className="w-6 h-6 rounded-full bg-family-100 dark:bg-family-900/30 text-family-600 text-xs flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                        <p className="text-sm text-slate-600 dark:text-slate-300">{line.replace(/^\d+[\.\)]\s*/, '')}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {detail.source_url && (
+                <a href={detail.source_url} target="_blank" rel="noopener noreferrer" className="btn-secondary text-sm flex items-center gap-2 w-fit">
+                  <ExternalLink size={14} /> View Original
+                </a>
+              )}
+              {detail.tags && (
+                <div className="flex flex-wrap gap-1">
+                  {detail.tags.split(',').map((t, i) => (
+                    <span key={i} className="badge bg-family-100 text-family-600 dark:bg-family-900/30 dark:text-family-300">{t.trim()}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="fixed inset-0 bg-black/30" onClick={() => { setShowForm(false); resetForm(); }} />
+          <div className="relative bg-white dark:bg-slate-800 rounded-t-2xl md:rounded-2xl w-full md:max-w-md max-h-[90vh] overflow-y-auto p-5 z-50">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">{editId ? 'Edit Recipe' : 'New Recipe'}</h2>
+              <button onClick={() => { setShowForm(false); resetForm(); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Recipe Name</label>
+                <input value={title} onChange={e => setTitle(e.target.value)} className="input-field" placeholder="e.g., Grandma's Meatloaf" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Description</label>
+                <input value={description} onChange={e => setDescription(e.target.value)} className="input-field" placeholder="Short description..." />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Prep Time</label>
+                  <input value={prepTime} onChange={e => setPrepTime(e.target.value)} className="input-field text-sm" placeholder="15 min" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Cook Time</label>
+                  <input value={cookTime} onChange={e => setCookTime(e.target.value)} className="input-field text-sm" placeholder="30 min" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Servings</label>
+                  <input value={servings} onChange={e => setServings(e.target.value)} className="input-field text-sm" placeholder="4" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Ingredients (one per line)</label>
+                <textarea value={ingredients} onChange={e => setIngredients(e.target.value)}
+                  className="input-field min-h-[100px] resize-none text-sm" placeholder="1 lb ground beef&#10;1 cup breadcrumbs&#10;2 eggs..." />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Instructions (one step per line)</label>
+                <textarea value={instructions} onChange={e => setInstructions(e.target.value)}
+                  className="input-field min-h-[100px] resize-none text-sm" placeholder="Preheat oven to 350F&#10;Mix ingredients in a bowl&#10;Shape into a loaf..." />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Tags (comma-separated)</label>
+                <input value={tags} onChange={e => setTags(e.target.value)} className="input-field" placeholder="beef, comfort food, easy" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Source URL (optional)</label>
+                <input value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} className="input-field" placeholder="https://..." />
+              </div>
+              <button type="submit" className="btn-primary w-full">{editId ? 'Save Changes' : 'Add Recipe'}</button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

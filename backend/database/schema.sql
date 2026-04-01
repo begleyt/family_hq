@@ -138,6 +138,23 @@ CREATE TABLE IF NOT EXISTS message_comments (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Recipe Book
+CREATE TABLE IF NOT EXISTS recipes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT,
+    ingredients TEXT,
+    instructions TEXT,
+    prep_time TEXT,
+    cook_time TEXT,
+    servings TEXT,
+    tags TEXT,
+    source_url TEXT,
+    created_by INTEGER NOT NULL REFERENCES users(id),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Family Polls
 CREATE TABLE IF NOT EXISTS polls (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

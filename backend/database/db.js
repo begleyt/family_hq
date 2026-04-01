@@ -152,6 +152,14 @@ function runMigrations(db) {
     console.log('Migration complete: archived column added');
   }
 
+  // Add recipe_id to meals
+  const mealCols = db.prepare("PRAGMA table_info(meals)").all().map(c => c.name);
+  if (!mealCols.includes('recipe_id')) {
+    console.log('Running migration: adding recipe_id to meals...');
+    db.exec('ALTER TABLE meals ADD COLUMN recipe_id INTEGER REFERENCES recipes(id)');
+    console.log('Migration complete: recipe_id added');
+  }
+
   // Add image columns to messages
   const msgCols2 = db.prepare("PRAGMA table_info(messages)").all().map(c => c.name);
   if (!msgCols2.includes('image_url')) {

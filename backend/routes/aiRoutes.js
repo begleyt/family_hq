@@ -90,6 +90,7 @@ async function getFamilyContext(userId, userRole) {
 
   const messages = db.prepare('SELECT m.content, u.display_name FROM messages m JOIN users u ON m.user_id = u.id ORDER BY m.created_at DESC LIMIT 5').all();
   const polls = db.prepare("SELECT title, type, restaurant_name FROM polls WHERE status = 'open'").all();
+  const recipes = db.prepare('SELECT id, title, tags FROM recipes ORDER BY title LIMIT 50').all();
 
   let ctx = `Today is ${dayName} (${today}).\nDATE REFERENCE: ${upcomingDays.join(', ')}\nIMPORTANT: When the user says a day of the week, use the DATE REFERENCE above to get the correct date. Do NOT calculate dates yourself.\n\nFAMILY: ${members.map(m => `${m.display_name} (${m.role})`).join(', ')}\n\n`;
   ctx += `TODAY'S MEALS: ${meals.length === 0 ? 'None planned' : meals.map(m => `${m.meal_type}: ${m.title}`).join(', ')}\n\n`;
@@ -98,6 +99,7 @@ async function getFamilyContext(userId, userRole) {
   ctx += `OPEN REQUESTS:\n${requests.length === 0 ? 'None' : requests.map(r => `- ID:${r.id} [${r.status}] "${r.title}" (${r.category})${r.from_name ? ` from ${r.from_name}` : ''}`).join('\n')}\n\n`;
   ctx += `MESSAGE BOARD: ${messages.length === 0 ? 'Empty' : messages.map(m => `${m.display_name}: ${m.content}`).join(' | ')}\n\n`;
   if (polls.length > 0) ctx += `ACTIVE POLLS: ${polls.map(p => p.type === 'food_order' ? `Food: ${p.restaurant_name}` : p.title).join(', ')}\n\n`;
+  ctx += `RECIPE BOOK (${recipes.length} recipes): ${recipes.length === 0 ? 'Empty' : recipes.map(r => `ID:${r.id} "${r.title}"${r.tags ? ` [${r.tags}]` : ''}`).join(', ')}\n\n`;
 
   // Calendar events
   const calEvents = await getCalendarEvents();
@@ -152,6 +154,23 @@ async function executeTool(toolName, toolInput, userId, userRole, displayName) {
       db.prepare('INSERT INTO grocery_items (name, quantity, category, added_by) VALUES (?, ?, ?, ?)')
         .run(name, quantity || '1', grocery_category || 'other', userId);
       return `Added "${name}" (qty: ${quantity || '1'}) to the grocery list.`;
+    }
+
+    case 'add_meal': {
+      if (userRole !== 'parent') return 'Only parents can add meals directly. Submit a meal_request instead.';
+      const { meal_title, meal_date, meal_type, meal_description, recipe_id } = toolInput;
+      db.prepare('INSERT INTO meals (meal_date, meal_type, title, description, recipe_id, created_by) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(meal_date, meal_type || 'dinner', meal_title, meal_description || '', recipe_id || null, userId);
+      logActivity(userId, 'planned_meal', 'meal', null, `${meal_type || 'dinner'}: ${meal_title}`);
+      return `Added "${meal_title}" to ${meal_type || 'dinner'} on ${meal_date}.`;
+    }
+
+    case 'add_recipe': {
+      if (userRole !== 'parent') return 'Only parents can add recipes.';
+      const { recipe_title, recipe_description, recipe_ingredients, recipe_instructions, recipe_prep_time, recipe_cook_time, recipe_servings, recipe_tags } = toolInput;
+      const result = db.prepare('INSERT INTO recipes (title, description, ingredients, instructions, prep_time, cook_time, servings, tags, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(recipe_title, recipe_description || '', recipe_ingredients || '', recipe_instructions || '', recipe_prep_time || '', recipe_cook_time || '', recipe_servings || '', recipe_tags || '', userId);
+      return `Added recipe "${recipe_title}" to the recipe book (ID: ${result.lastInsertRowid}).`;
     }
 
     case 'post_message': {
@@ -303,6 +322,39 @@ const AI_TOOLS = [
     },
   },
   {
+    name: 'add_meal',
+    description: 'Add a meal to the family meal planner for a specific date and meal type. Only works for parent users. For non-parents, create a meal_request instead. Can optionally link to a recipe by ID.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        meal_title: { type: 'string', description: 'Name of the meal (e.g., "Spaghetti & Meatballs")' },
+        meal_date: { type: 'string', description: 'Date in YYYY-MM-DD format. Use the DATE REFERENCE to convert day names to dates.' },
+        meal_type: { type: 'string', enum: ['breakfast', 'lunch', 'dinner', 'snack'], description: 'Which meal slot' },
+        meal_description: { type: 'string', description: 'Optional notes' },
+        recipe_id: { type: 'integer', description: 'Optional recipe ID from the recipe book to link' },
+      },
+      required: ['meal_title', 'meal_date', 'meal_type'],
+    },
+  },
+  {
+    name: 'add_recipe',
+    description: 'Add a recipe to the family recipe book. Only works for parent users. Include ingredients and instructions.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        recipe_title: { type: 'string', description: 'Recipe name' },
+        recipe_description: { type: 'string', description: 'Short description' },
+        recipe_ingredients: { type: 'string', description: 'List of ingredients, one per line' },
+        recipe_instructions: { type: 'string', description: 'Step-by-step instructions, one per line' },
+        recipe_prep_time: { type: 'string', description: 'Prep time (e.g., "15 min")' },
+        recipe_cook_time: { type: 'string', description: 'Cook time (e.g., "30 min")' },
+        recipe_servings: { type: 'string', description: 'Number of servings (e.g., "4")' },
+        recipe_tags: { type: 'string', description: 'Comma-separated tags (e.g., "chicken, quick, healthy")' },
+      },
+      required: ['recipe_title'],
+    },
+  },
+  {
     name: 'approve_request',
     description: 'Approve an open family request. Only works for parent users. Use the request ID from the OPEN REQUESTS list. For grocery_item requests this also adds the item to the grocery list automatically.',
     input_schema: {
@@ -379,6 +431,9 @@ CAPABILITIES:
 - If the user is a parent, you can ADD GROCERY ITEMS directly using add_grocery_item.
 - If the user is a teen/child asking for grocery items, create a grocery_item request instead (it needs parent approval).
 - You can POST MESSAGES to the family message board using post_message.
+- If the user is a PARENT, you can ADD MEALS to the planner using add_meal. For teens/children, create a meal_request instead.
+- If the user is a PARENT, you can ADD RECIPES to the recipe book using add_recipe. When adding a recipe, include ingredients and instructions.
+- When adding a meal, you can optionally link it to a recipe from the RECIPE BOOK by recipe ID.
 - If the user is a PARENT, you can APPROVE or DENY open requests using approve_request and deny_request tools. Use the request ID from the OPEN REQUESTS list. When approving grocery_item requests, the item is automatically added to the grocery list.
 - When approving/denying, the requester is automatically notified.
 - Keep responses short (1-3 sentences). Be fun and family-friendly!`;

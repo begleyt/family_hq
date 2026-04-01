@@ -39,15 +39,15 @@ router.get('/', (req, res) => {
 
 // POST /api/meals - parent only
 router.post('/', roleCheck('parent'), (req, res) => {
-  const { mealDate, mealType, title, description, recipeUrl, assignedTo } = req.body;
+  const { mealDate, mealType, title, description, recipeUrl, assignedTo, recipeId } = req.body;
   if (!mealDate || !mealType || !title) {
     return res.status(400).json({ error: 'mealDate, mealType, and title are required' });
   }
 
   const result = getDb().prepare(`
-    INSERT INTO meals (meal_date, meal_type, title, description, recipe_url, assigned_to, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(mealDate, mealType, title, description || '', recipeUrl || null, assignedTo || null, req.user.id);
+    INSERT INTO meals (meal_date, meal_type, title, description, recipe_url, assigned_to, recipe_id, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(mealDate, mealType, title, description || '', recipeUrl || null, assignedTo || null, recipeId || null, req.user.id);
 
   logActivity(req.user.id, 'planned_meal', 'meal', result.lastInsertRowid, `${mealType}: ${title}`);
   res.status(201).json({ id: result.lastInsertRowid, message: 'Meal added' });
