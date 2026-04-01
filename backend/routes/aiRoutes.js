@@ -92,7 +92,7 @@ async function getFamilyContext(userId, userRole) {
   const polls = db.prepare("SELECT title, type, restaurant_name FROM polls WHERE status = 'open'").all();
   const recipes = db.prepare('SELECT id, title, tags FROM recipes ORDER BY title LIMIT 50').all();
 
-  let ctx = `Today is ${dayName} (${today}).\nDATE REFERENCE: ${upcomingDays.join(', ')}\nIMPORTANT: When the user says a day of the week, use the DATE REFERENCE above to get the correct date. Do NOT calculate dates yourself.\n\nFAMILY: ${members.map(m => `${m.display_name} (${m.role})`).join(', ')}\n\n`;
+  let ctx = `Today is ${dayName} (${today}).\n\n=== DATE LOOKUP TABLE ===\n${upcomingDays.join('\n')}\n=== END DATE LOOKUP ===\nRULE: When the user says a day name, ALWAYS look it up in the table above and use that EXACT YYYY-MM-DD date. NEVER calculate or add days yourself.\n\nFAMILY: ${members.map(m => `${m.display_name} (${m.role})`).join(', ')}\n\n`;
   ctx += `TODAY'S MEALS: ${meals.length === 0 ? 'None planned' : meals.map(m => `${m.meal_type}: ${m.title}`).join(', ')}\n\n`;
   ctx += `WEEK MEALS:\n${weekMeals.length === 0 ? 'None' : weekMeals.map(m => `${m.meal_date} ${m.meal_type}: ${m.title}`).join('\n')}\n\n`;
   ctx += `GROCERY LIST (${groceryItems.length} items): ${groceryItems.length === 0 ? 'Empty' : groceryItems.map(g => `${g.name} x${g.quantity}`).join(', ')}\n\n`;
@@ -288,7 +288,7 @@ const AI_TOOLS = [
         priority: { type: 'string', enum: ['low', 'normal', 'high', 'urgent'], description: 'Priority level' },
         description: { type: 'string', description: 'Additional details' },
         ride_destination: { type: 'string', description: 'For ride_request: where to (e.g., "Jake\'s house", "Soccer field")' },
-        ride_time: { type: 'string', description: 'For ride_request: date and time as LOCAL time (Central timezone), format YYYY-MM-DDTHH:MM (e.g., "2026-04-03T19:00" for 7pm on April 3rd). Do NOT adjust for timezone — use the exact time the user says.' },
+        ride_time: { type: 'string', description: 'For ride_request: CRITICAL: Look up the date from DATE REFERENCE, then append the time. Format: YYYY-MM-DDTHH:MM. Example: if Saturday = 2026-04-04 and user says 7pm, use "2026-04-04T19:00". Do NOT calculate dates yourself.' },
         allowance_amount: { type: 'string', description: 'For allowance: dollar amount (e.g., "10.00")' },
         grocery_category: { type: 'string', enum: ['produce', 'dairy', 'meat', 'bakery', 'frozen', 'pantry', 'beverages', 'snacks', 'household', 'other'], description: 'For grocery_item: aisle/category' },
         grocery_quantity: { type: 'string', description: 'For grocery_item: quantity (e.g., "2", "1 gallon")' },
@@ -328,7 +328,7 @@ const AI_TOOLS = [
       type: 'object',
       properties: {
         meal_title: { type: 'string', description: 'Name of the meal (e.g., "Spaghetti & Meatballs")' },
-        meal_date: { type: 'string', description: 'Date in YYYY-MM-DD format. Use the DATE REFERENCE to convert day names to dates.' },
+        meal_date: { type: 'string', description: 'Date in YYYY-MM-DD format. CRITICAL: You MUST look up the exact date from the DATE REFERENCE list in the system context. Do NOT calculate or guess dates. Copy the date string exactly as shown next to the day name.' },
         meal_type: { type: 'string', enum: ['breakfast', 'lunch', 'dinner', 'snack'], description: 'Which meal slot' },
         meal_description: { type: 'string', description: 'Optional notes' },
         recipe_id: { type: 'integer', description: 'Optional recipe ID from the recipe book to link' },
