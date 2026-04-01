@@ -451,7 +451,12 @@ export default function CalendarPage() {
 
       {/* Week Meals — aligned with calendar columns */}
       {weekMeals.length > 0 && (
-        <div className="mt-0 card p-0 overflow-hidden border-t-0 rounded-t-none">
+        <div className="mt-4 card p-0 overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-700">
+            <h3 className="font-semibold text-sm text-slate-700 dark:text-slate-200 flex items-center gap-2">
+              {'\u{1F37D}\u{FE0F}'} Weekly Meal Plan
+            </h3>
+          </div>
           {(() => {
             const days = getWeekDays();
             const MEAL_EMOJI = { breakfast: '\u{1F373}', lunch: '\u{1F96A}', dinner: '\u{1F35D}', snack: '\u{1F34E}' };
