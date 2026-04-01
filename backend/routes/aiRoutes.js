@@ -165,6 +165,25 @@ async function executeTool(toolName, toolInput, userId, userRole, displayName) {
       return `Added "${meal_title}" to ${meal_type || 'dinner'} on ${meal_date}.`;
     }
 
+    case 'add_recipe_to_grocery': {
+      if (userRole !== 'parent') return 'Only parents can add to the grocery list.';
+      const { recipe_name: grRecipeName, ingredients: grIngredients } = toolInput;
+      if (!grIngredients || !grIngredients.length) return 'No ingredients provided.';
+
+      let added = 0, skipped = 0;
+      for (const item of grIngredients) {
+        const name = (typeof item === 'string' ? item : item.name || '').trim();
+        if (!name) continue;
+        const exists = db.prepare('SELECT id FROM grocery_items WHERE name = ? COLLATE NOCASE AND is_checked = 0').get(name);
+        if (exists) { skipped++; continue; }
+        const qty = typeof item === 'object' ? (item.quantity || '1') : '1';
+        db.prepare('INSERT INTO grocery_items (name, quantity, category, added_by, for_recipe) VALUES (?, ?, ?, ?, ?)')
+          .run(name, qty, 'other', userId, grRecipeName || null);
+        added++;
+      }
+      return `Added ${added} ingredients to grocery list for "${grRecipeName || 'recipe'}"${skipped > 0 ? ` (${skipped} already on list)` : ''}.`;
+    }
+
     case 'add_recipe': {
       if (userRole !== 'parent') return 'Only parents can add recipes.';
       const { recipe_title, recipe_description, recipe_ingredients, recipe_instructions, recipe_prep_time, recipe_cook_time, recipe_servings, recipe_tags } = toolInput;
@@ -337,6 +356,29 @@ const AI_TOOLS = [
     },
   },
   {
+    name: 'add_recipe_to_grocery',
+    description: 'Add recipe ingredients to the grocery/shopping list. Only for parents. Checks for duplicates — items already on the list are skipped. Tags each item with the recipe name. Use this when adding a meal to the planner if the user wants ingredients added, or when explicitly asked to shop for a recipe.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        recipe_name: { type: 'string', description: 'Name of the recipe these ingredients are for' },
+        ingredients: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Ingredient name (e.g., "chicken breast")' },
+              quantity: { type: 'string', description: 'Amount needed (e.g., "2 lbs", "1 cup")' },
+            },
+            required: ['name'],
+          },
+          description: 'List of ingredients to add',
+        },
+      },
+      required: ['recipe_name', 'ingredients'],
+    },
+  },
+  {
     name: 'add_recipe',
     description: 'Add a recipe to the family recipe book. Only works for parent users. Include ingredients and instructions.',
     input_schema: {
@@ -434,6 +476,7 @@ CAPABILITIES:
 - If the user is a PARENT, you can ADD MEALS to the planner using add_meal. For teens/children, create a meal_request instead.
 - If the user is a PARENT, you can ADD RECIPES to the recipe book using add_recipe. When adding a recipe, include ingredients and instructions.
 - When adding a meal, you can optionally link it to a recipe from the RECIPE BOOK by recipe ID.
+- If the user is a PARENT, you can ADD RECIPE INGREDIENTS TO THE GROCERY LIST using add_recipe_to_grocery. This checks for duplicates automatically. Each item is tagged with the recipe name. When adding a meal with a recipe, proactively ask if they want the ingredients added to the shopping list.
 - If the user is a PARENT, you can APPROVE or DENY open requests using approve_request and deny_request tools. Use the request ID from the OPEN REQUESTS list. When approving grocery_item requests, the item is automatically added to the grocery list.
 - When approving/denying, the requester is automatically notified.
 - Keep responses short (1-3 sentences). Be fun and family-friendly!`;

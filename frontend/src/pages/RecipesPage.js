@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
-import { Plus, X, Search, ChefHat, Clock, Users, Tag, ExternalLink, Edit, Trash2, Star } from 'lucide-react';
+import { Plus, X, Search, ChefHat, Clock, Users, Tag, ExternalLink, Edit, Trash2, Star, ShoppingCart, Check } from 'lucide-react';
 import Avatar from '../components/common/Avatar';
 
 export default function RecipesPage() {
@@ -14,6 +14,9 @@ export default function RecipesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [favUsers, setFavUsers] = useState([]);
+  const [showGroceryAdd, setShowGroceryAdd] = useState(false);
+  const [groceryIngredients, setGroceryIngredients] = useState([]);
+  const [addingToGrocery, setAddingToGrocery] = useState(false);
   const isDashboard = user.role === 'dashboard';
 
   // Form
@@ -68,6 +71,32 @@ export default function RecipesPage() {
   const loadFavUsers = async (id) => {
     const res = await api.get(`/recipes/${id}/favorites`);
     setFavUsers(res.data);
+  };
+
+  const openGroceryAdd = (recipe) => {
+    // Parse ingredients into editable list
+    const lines = (recipe.ingredients || '').split('\n').filter(l => l.trim());
+    setGroceryIngredients(lines.map(line => {
+      const clean = line.replace(/^[-*•]\s*/, '').trim();
+      // Try to split quantity from name (e.g., "2 cups flour" -> qty:"2 cups", name:"flour")
+      const match = clean.match(/^([\d½¼¾⅓⅔/.\s]+(?:cup|cups|lb|lbs|oz|tsp|tbsp|gallon|gallons|can|cans|pkg|bunch|head|clove|cloves|piece|pieces)?s?)\s+(.+)$/i);
+      if (match) return { name: match[2].trim(), quantity: match[1].trim(), include: true };
+      return { name: clean, quantity: '1', include: true };
+    }));
+    setShowGroceryAdd(true);
+  };
+
+  const handleAddToGrocery = async () => {
+    const items = groceryIngredients.filter(i => i.include && i.name.trim());
+    if (items.length === 0) return;
+    setAddingToGrocery(true);
+    try {
+      const res = await api.post('/grocery/from-recipe', { items, recipeName: detail.title });
+      alert(res.data.message);
+      setShowGroceryAdd(false);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to add');
+    } finally { setAddingToGrocery(false); }
   };
 
   const handleDelete = async (id) => {
@@ -179,10 +208,18 @@ export default function RecipesPage() {
                   </div>
                 </div>
               )}
-              {detail.source_url && (
-                <a href={detail.source_url} target="_blank" rel="noopener noreferrer" className="btn-secondary text-sm flex items-center gap-2 w-fit">
-                  <ExternalLink size={14} /> View Original
-                </a>
+              <div className="flex flex-wrap gap-2">
+                {detail.source_url && (
+                  <a href={detail.source_url} target="_blank" rel="noopener noreferrer" className="btn-secondary text-sm flex items-center gap-2">
+                    <ExternalLink size={14} /> View Original
+                  </a>
+                )}
+                {isParent && detail.ingredients && (
+                  <button onClick={() => openGroceryAdd(detail)} className="btn-primary text-sm flex items-center gap-2">
+                    <ShoppingCart size={14} /> Add to Grocery List
+                  </button>
+                )}
+              </div>
               )}
               {detail.tags && (
                 <div className="flex flex-wrap gap-1">
@@ -218,6 +255,53 @@ export default function RecipesPage() {
       )}
 
       {/* Add/Edit Form Modal */}
+      {/* Add Ingredients to Grocery Modal */}
+      {showGroceryAdd && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="fixed inset-0 bg-black/30" onClick={() => setShowGroceryAdd(false)} />
+          <div className="relative bg-white dark:bg-slate-800 rounded-t-2xl md:rounded-2xl w-full md:max-w-md max-h-[85vh] overflow-y-auto p-5 z-50">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <ShoppingCart size={20} /> Add to Grocery List
+              </h2>
+              <button onClick={() => setShowGroceryAdd(false)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={20} /></button>
+            </div>
+            <p className="text-sm text-slate-500 mb-3">
+              Ingredients from <span className="font-medium text-slate-700 dark:text-slate-200">{detail?.title}</span> — uncheck items you don't need, edit names or quantities.
+            </p>
+            <div className="space-y-1.5 mb-4">
+              {groceryIngredients.map((item, i) => (
+                <div key={i} className={`flex items-center gap-2 p-2 rounded-lg transition-colors ${item.include ? 'bg-slate-50 dark:bg-slate-700' : 'bg-slate-50/50 dark:bg-slate-700/50 opacity-50'}`}>
+                  <button onClick={() => {
+                    const updated = [...groceryIngredients];
+                    updated[i] = { ...updated[i], include: !updated[i].include };
+                    setGroceryIngredients(updated);
+                  }} className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${item.include ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'}`}>
+                    {item.include && <Check size={12} className="text-white" />}
+                  </button>
+                  <input value={item.quantity} onChange={e => {
+                    const updated = [...groceryIngredients];
+                    updated[i] = { ...updated[i], quantity: e.target.value };
+                    setGroceryIngredients(updated);
+                  }} className="w-16 input-field text-xs py-1 px-2 text-center" />
+                  <input value={item.name} onChange={e => {
+                    const updated = [...groceryIngredients];
+                    updated[i] = { ...updated[i], name: e.target.value };
+                    setGroceryIngredients(updated);
+                  }} className="flex-1 input-field text-xs py-1 px-2" />
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-slate-400 mb-3">
+              {groceryIngredients.filter(i => i.include).length} of {groceryIngredients.length} items selected. Duplicates already on the list will be skipped.
+            </p>
+            <button onClick={handleAddToGrocery} disabled={addingToGrocery} className="btn-primary w-full flex items-center justify-center gap-2">
+              <ShoppingCart size={16} /> {addingToGrocery ? 'Adding...' : 'Add Selected to Grocery List'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
           <div className="fixed inset-0 bg-black/30" onClick={() => { setShowForm(false); resetForm(); }} />

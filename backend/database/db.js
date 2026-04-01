@@ -152,6 +152,14 @@ function runMigrations(db) {
     console.log('Migration complete: archived column added');
   }
 
+  // Add recipe_name to grocery_items
+  const groceryCols2 = db.prepare("PRAGMA table_info(grocery_items)").all().map(c => c.name);
+  if (!groceryCols2.includes('for_recipe')) {
+    console.log('Running migration: adding for_recipe to grocery_items...');
+    db.exec('ALTER TABLE grocery_items ADD COLUMN for_recipe TEXT');
+    console.log('Migration complete: for_recipe added');
+  }
+
   // Add recipe_id to meals
   const mealCols = db.prepare("PRAGMA table_info(meals)").all().map(c => c.name);
   if (!mealCols.includes('recipe_id')) {

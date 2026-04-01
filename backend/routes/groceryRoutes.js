@@ -127,13 +127,13 @@ router.post('/archives/:id/restore-item', roleCheck('parent'), (req, res) => {
 
 // POST /api/grocery - parent only
 router.post('/', roleCheck('parent'), (req, res) => {
-  const { name, quantity, category } = req.body;
+  const { name, quantity, category, forRecipe } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
 
   const result = getDb().prepare(`
-    INSERT INTO grocery_items (name, quantity, category, added_by)
-    VALUES (?, ?, ?, ?)
-  `).run(name, quantity || '1', category || 'other', req.user.id);
+    INSERT INTO grocery_items (name, quantity, category, added_by, for_recipe)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(name, quantity || '1', category || 'other', req.user.id, forRecipe || null);
 
   trackHistory(name, category || 'other', quantity || '1');
   logActivity(req.user.id, 'added_grocery', 'grocery', result.lastInsertRowid, name);
@@ -187,6 +187,31 @@ router.delete('/:id', roleCheck('parent'), (req, res) => {
 router.delete('/checked/clear', roleCheck('parent'), (req, res) => {
   const result = getDb().prepare('DELETE FROM grocery_items WHERE is_checked = 1').run();
   res.json({ message: `Cleared ${result.changes} items` });
+});
+
+// POST /api/grocery/from-recipe - add recipe ingredients to grocery list (parent only)
+router.post('/from-recipe', roleCheck('parent'), (req, res) => {
+  const { items, recipeName } = req.body;
+  if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'items array required' });
+
+  let added = 0, skipped = 0;
+  const insert = getDb().prepare('INSERT INTO grocery_items (name, quantity, category, added_by, for_recipe) VALUES (?, ?, ?, ?, ?)');
+
+  for (const item of items) {
+    if (!item.name || !item.name.trim()) continue;
+    // Check for duplicates (case-insensitive, unchecked items only)
+    const exists = getDb().prepare('SELECT id FROM grocery_items WHERE name = ? COLLATE NOCASE AND is_checked = 0').get(item.name.trim());
+    if (exists) {
+      skipped++;
+      continue;
+    }
+    insert.run(item.name.trim(), item.quantity || '1', item.category || 'other', req.user.id, recipeName || null);
+    trackHistory(item.name.trim(), item.category || 'other', item.quantity || '1');
+    added++;
+  }
+
+  logActivity(req.user.id, 'added_grocery', 'grocery', null, `${added} items from recipe "${recipeName || 'unknown'}"`);
+  res.json({ message: `Added ${added} items${skipped > 0 ? `, ${skipped} already on list` : ''}` });
 });
 
 module.exports = router;

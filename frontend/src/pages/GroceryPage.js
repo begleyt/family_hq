@@ -268,6 +268,7 @@ export default function GroceryPage() {
                             ? <> &middot; requested by <Avatar url={item.requested_by_avatar_url} emoji={item.requested_by_emoji} size="xs" className="inline-block align-middle mx-0.5" /> {item.requested_by_name}</>
                             : <> &middot; by {item.added_by_name}</>
                           }
+                          {item.for_recipe && <> &middot; <span className="text-family-500">for {item.for_recipe}</span></>}
                         </p>
                       </div>
                       {isParent && (
