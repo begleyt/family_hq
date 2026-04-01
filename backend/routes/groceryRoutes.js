@@ -194,32 +194,39 @@ router.delete('/checked/clear', roleCheck('parent'), (req, res) => {
 function categorizeItem(name) {
   const n = name.toLowerCase();
 
-  // Produce
-  if (/\b(lettuce|tomato|onion|garlic|pepper|potato|carrot|celery|broccoli|spinach|kale|cucumber|avocado|mushroom|zucchini|squash|corn|bean sprout|cilantro|parsley|basil|mint|ginger|lemon|lime|orange|apple|banana|grape|strawberr|blueberr|raspberr|mango|pineapple|peach|pear|melon|watermelon|berr|fruit|vegetable|salad|herb|scallion|shallot|jalape|cabbage|cauliflower|asparagus|artichoke|beet|radish|turnip|sweet potato|green bean|snap pea|bell pepper|chili|chilli|fresh)\b/.test(n)) return 'produce';
+  // Pantry-specific compounds FIRST (before produce catches "olive", "pepper", etc.)
+  if (/\b(olive oil|vegetable oil|canola oil|sesame oil|coconut oil|cooking oil|oil\b)/i.test(n)) return 'pantry';
+  if (/\b(red wine vinegar|balsamic vinegar|apple cider vinegar|white vinegar|rice vinegar|vinegar)/i.test(n)) return 'pantry';
+  if (/\b(salt and pepper|salt & pepper|black pepper|ground pepper|pepper flake|red pepper flake)/i.test(n)) return 'pantry';
+  if (/\b(dried oregano|dried basil|dried thyme|dried parsley|dried dill|dried rosemary)/i.test(n)) return 'pantry';
+  if (/\b(lemon juice|lime juice|orange juice concentrate)/i.test(n)) return 'pantry';
+
+  // Produce (allow plurals/suffixes: tomato matches tomatoes, diced, etc.)
+  if (/\b(lettuc|tomato|onion|garlic|pepper[s,\s]|potato|carrot|celer|broccol|spinach|kale|cucumber|avocado|mushroom|zucchini|squash|corn\b|bean sprout|cilantro|parsley|basil|mint\b|ginger|lemon|lime\b|orange|apple|banana|grape|strawberr|blueberr|raspberr|mango|pineapple|peach|pear\b|melon|watermelon|berr|fruit|vegetab|salad|herb|scallion|shallot|jalape|cabbage|cauliflower|asparagus|artichoke|beet|radish|turnip|sweet potato|green bean|snap pea|bell pepper|chil[li]|fresh |olive[s,\s]|arugula|romaine|endive|fennel|leek|chive|dill\b|rosemary|thyme|sage\b)/i.test(n) && !/oil|vinegar|dried|juice/i.test(n)) return 'produce';
 
   // Meat
-  if (/\b(chicken|beef|pork|steak|ground|turkey|bacon|sausage|ham|lamb|meat|ribs|roast|tenderloin|breast|thigh|wing|drumstick|ground beef|ground turkey|salmon|tuna|shrimp|fish|cod|tilapia|crab|lobster|seafood|meatball|hot dog|brisket|chuck)\b/.test(n)) return 'meat';
+  if (/\b(chicken|beef|pork|steak|ground|turkey|bacon|sausage|ham|lamb|meat|rib[s ]|roast|tenderloin|breast|thigh|wing|drumstick|salmon|tuna|shrimp|fish|cod|tilapia|crab|lobster|seafood|meatball|hot dog|brisket|chuck)/i.test(n)) return 'meat';
 
   // Dairy
-  if (/\b(milk|cheese|butter|cream|yogurt|sour cream|egg|eggs|cream cheese|mozzarella|cheddar|parmesan|ricotta|cottage cheese|whipping cream|half and half|heavy cream|whipped)\b/.test(n)) return 'dairy';
+  if (/\b(milk|cheese|butter|cream|yogurt|sour cream|egg[s,\b]|cream cheese|mozzarella|cheddar|parmesan|ricotta|cottage cheese|whipping cream|half and half|heavy cream|feta)/i.test(n)) return 'dairy';
 
   // Bakery
-  if (/\b(bread|rolls|bun|buns|bagel|tortilla|pita|croissant|muffin|cake|pie crust|dough|biscuit|english muffin|flatbread|naan|wrap)\b/.test(n)) return 'bakery';
+  if (/\b(bread|roll[s\b]|bun[s\b]|bagel|tortilla|pita|croissant|muffin|cake|pie crust|dough|biscuit|english muffin|flatbread|naan|wrap)/i.test(n)) return 'bakery';
 
   // Frozen
-  if (/\b(frozen|ice cream|pizza|waffle|french fries|tater tot|popsicle|frozen vegetable|frozen fruit)\b/.test(n)) return 'frozen';
+  if (/\b(frozen|ice cream|pizza|waffle|french fries|tater tot|popsicle)/i.test(n)) return 'frozen';
 
   // Beverages
-  if (/\b(juice|soda|water|coffee|tea|drink|wine|beer|lemonade|gatorade|milk)\b/.test(n) && !/\b(coconut milk|almond milk)\b/.test(n)) return 'beverages';
+  if (/\b(juice|soda|water|coffee|tea\b|drink|wine|beer|lemonade|gatorade)/i.test(n) && !/coconut|almond|vinegar/i.test(n)) return 'beverages';
 
   // Snacks
-  if (/\b(chip|chips|cracker|cookie|candy|chocolate|popcorn|pretzel|nut|nuts|granola bar|trail mix|snack|goldfish|cheez)\b/.test(n)) return 'snacks';
+  if (/\b(chip[s\b]|cracker|cookie|candy|chocolate|popcorn|pretzel|granola bar|trail mix|snack|goldfish)/i.test(n)) return 'snacks';
 
   // Household
-  if (/\b(paper towel|toilet paper|soap|detergent|trash bag|foil|plastic wrap|sponge|bleach|cleaner|wipe|napkin|tissue|laundry|dish soap|ziploc|bag)\b/.test(n)) return 'household';
+  if (/\b(paper towel|toilet paper|soap|detergent|trash bag|foil|plastic wrap|sponge|bleach|cleaner|wipe|napkin|tissue|laundry|dish soap|ziploc)/i.test(n)) return 'household';
 
   // Pantry (broad catch for shelf-stable items)
-  if (/\b(flour|sugar|salt|pepper|oil|olive oil|vegetable oil|vinegar|soy sauce|ketchup|mustard|mayo|mayonnaise|hot sauce|worcestershire|pasta|noodle|rice|quinoa|oat|cereal|pancake|syrup|honey|jam|jelly|peanut butter|can|canned|broth|stock|sauce|tomato sauce|tomato paste|diced tomato|bean|lentil|chickpea|spice|seasoning|cumin|paprika|oregano|thyme|cinnamon|nutmeg|baking|baking soda|baking powder|vanilla|cornstarch|breadcrumb|panko|crouton|soup|ramen|taco|tortilla chip|salsa|dressing|marinade|coconut milk|almond milk)\b/.test(n)) return 'pantry';
+  if (/\b(flour|sugar|salt|oil|vinegar|soy sauce|ketchup|mustard|mayo|hot sauce|worcestershire|pasta|noodle|rice|quinoa|oat|cereal|pancake|syrup|honey|jam|jelly|peanut butter|canned|broth|stock|sauce|tomato sauce|tomato paste|bean[s\b]|lentil|chickpea|spice|season|cumin|paprika|oregano|cinnamon|nutmeg|baking|vanilla|cornstarch|breadcrumb|panko|crouton|soup|ramen|taco|salsa|dressing|marinade|coconut milk|almond milk|red wine vinegar|dried|hummus|tahini)/i.test(n)) return 'pantry';
 
   // Check grocery history for previously categorized items
   const history = getDb().prepare('SELECT category FROM grocery_history WHERE name = ? COLLATE NOCASE').get(name);

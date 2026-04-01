@@ -5,7 +5,7 @@ import api from '../api';
 import Avatar from '../components/common/Avatar';
 import {
   Plus, Trash2, Check, X, Ticket, Archive, RotateCcw,
-  ChevronDown, ChevronRight, Clock, ShoppingCart
+  ChevronDown, ChevronRight, Clock, ShoppingCart, Edit
 } from 'lucide-react';
 
 const GROCERY_CATEGORIES = [
@@ -33,6 +33,10 @@ export default function GroceryPage() {
   const [quantity, setQuantity] = useState('');
   const [category, setCategory] = useState('other');
   const [showAdd, setShowAdd] = useState(false);
+  const [editItem, setEditItem] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editQty, setEditQty] = useState('');
+  const [editCat, setEditCat] = useState('other');
 
   // Autocomplete
   const [suggestions, setSuggestions] = useState([]);
@@ -105,6 +109,20 @@ export default function GroceryPage() {
       category: matchedSuggestion?.category || 'other'
     });
     setName(''); setSuggestions([]); setShowSuggestions(false);
+    fetchItems();
+  };
+
+  const openEdit = (item) => {
+    setEditItem(item);
+    setEditName(item.name);
+    setEditQty(item.quantity);
+    setEditCat(item.category);
+  };
+
+  const handleEdit = async (e) => {
+    e.preventDefault();
+    await api.put(`/grocery/${editItem.id}`, { name: editName, quantity: editQty, category: editCat });
+    setEditItem(null);
     fetchItems();
   };
 
@@ -272,9 +290,14 @@ export default function GroceryPage() {
                         </p>
                       </div>
                       {isParent && (
-                        <button onClick={() => handleDelete(item.id)} className="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex items-center gap-0.5">
+                          <button onClick={() => openEdit(item)} className="p-1.5 text-slate-300 hover:text-family-500 transition-colors">
+                            <Edit size={14} />
+                          </button>
+                          <button onClick={() => handleDelete(item.id)} className="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -361,6 +384,44 @@ export default function GroceryPage() {
                 </div>
               </div>
               <button type="submit" className="btn-primary w-full">Add Item</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Item Modal */}
+      {editItem && isParent && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="fixed inset-0 bg-black/30" onClick={() => setEditItem(null)} />
+          <div className="relative bg-white dark:bg-slate-800 rounded-t-2xl md:rounded-2xl w-full md:max-w-sm p-5 z-50">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">Edit Item</h2>
+              <button onClick={() => setEditItem(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleEdit} className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Name</label>
+                <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Quantity</label>
+                <input value={editQty} onChange={e => setEditQty(e.target.value)} className="input-field" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Category</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {GROCERY_CATEGORIES.map(c => (
+                    <button key={c.value} type="button" onClick={() => setEditCat(c.value)}
+                      className={`flex flex-col items-center gap-1 p-2 rounded-xl text-xs transition-all ${
+                        editCat === c.value ? 'bg-family-100 ring-2 ring-family-400 dark:bg-family-900/30' : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-700 dark:hover:bg-slate-600'
+                      }`}>
+                      <span className="text-lg">{c.emoji}</span>
+                      <span className="truncate w-full text-center text-[10px]">{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button type="submit" className="btn-primary w-full">Save Changes</button>
             </form>
           </div>
         </div>
