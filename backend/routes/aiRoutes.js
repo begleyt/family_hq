@@ -110,11 +110,13 @@ function executeTool(toolName, toolInput, userId, userRole, displayName) {
 
   switch (toolName) {
     case 'create_request': {
-      const { title, category, priority, description } = toolInput;
+      const { title, category, priority, description, ride_destination, ride_time, allowance_amount, grocery_category, grocery_quantity, meal_type_requested } = toolInput;
       const result = db.prepare(`
-        INSERT INTO requests (title, description, category, priority, submitted_by)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(title, description || '', category || 'other', priority || 'normal', userId);
+        INSERT INTO requests (title, description, category, priority, submitted_by, ride_destination, ride_time, allowance_amount, grocery_category, grocery_quantity, meal_type_requested)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(title, description || '', category || 'other', priority || 'normal', userId,
+        ride_destination || null, ride_time || null, allowance_amount || null,
+        grocery_category || null, grocery_quantity || null, meal_type_requested || null);
 
       logActivity(userId, 'created_request', 'request', result.lastInsertRowid, `New request: ${title}`);
 
@@ -124,7 +126,11 @@ function executeTool(toolName, toolInput, userId, userRole, displayName) {
         notify(p.id, 'New Request', `${displayName} submitted: "${title}"`, 'info', result.lastInsertRowid);
       });
 
-      return `Request created: "${title}" (${category || 'other'}, ${priority || 'normal'})`;
+      let confirmation = `Request created: "${title}" (${category || 'other'})`;
+      if (ride_destination) confirmation += ` — to ${ride_destination}`;
+      if (ride_time) confirmation += ` at ${ride_time}`;
+      if (allowance_amount) confirmation += ` — $${allowance_amount}`;
+      return confirmation;
     }
 
     case 'add_grocery_item': {
@@ -193,14 +199,20 @@ function executeTool(toolName, toolInput, userId, userRole, displayName) {
 const AI_TOOLS = [
   {
     name: 'create_request',
-    description: 'Create a family request/ticket on behalf of the current user. Use this when someone asks to request something, ask for a ride, request permission, suggest a meal, ask for a grocery item, etc.',
+    description: 'Create a family request/ticket on behalf of the current user. Use this when someone asks to request something, ask for a ride, request permission, suggest a meal, ask for a grocery item, etc. For ride_request, always include ride_destination and ride_time. For allowance, include allowance_amount. For grocery_item, include grocery_category and grocery_quantity. For meal_request, include meal_type_requested.',
     input_schema: {
       type: 'object',
       properties: {
-        title: { type: 'string', description: 'Short title for the request' },
+        title: { type: 'string', description: 'Short title for the request (e.g., "Soccer practice", "Chocolate milk", "Tacos")' },
         category: { type: 'string', enum: ['fix_something', 'buy_something', 'permission', 'chore_negotiation', 'allowance', 'ride_request', 'tech_request', 'grocery_item', 'meal_request', 'other'], description: 'Request category' },
         priority: { type: 'string', enum: ['low', 'normal', 'high', 'urgent'], description: 'Priority level' },
         description: { type: 'string', description: 'Additional details' },
+        ride_destination: { type: 'string', description: 'For ride_request: where to (e.g., "Jake\'s house", "Soccer field")' },
+        ride_time: { type: 'string', description: 'For ride_request: date and time in ISO format (e.g., "2026-04-02T17:00")' },
+        allowance_amount: { type: 'string', description: 'For allowance: dollar amount (e.g., "10.00")' },
+        grocery_category: { type: 'string', enum: ['produce', 'dairy', 'meat', 'bakery', 'frozen', 'pantry', 'beverages', 'snacks', 'household', 'other'], description: 'For grocery_item: aisle/category' },
+        grocery_quantity: { type: 'string', description: 'For grocery_item: quantity (e.g., "2", "1 gallon")' },
+        meal_type_requested: { type: 'string', enum: ['breakfast', 'lunch', 'dinner', 'snack'], description: 'For meal_request: which meal' },
       },
       required: ['title', 'category'],
     },
