@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
-import { MessageSquare, X, Send, Settings, Bot, User, Sparkles, CheckCircle2 } from 'lucide-react';
+import { MessageSquare, X, Send, Settings, Bot, User, Sparkles, CheckCircle2, Camera, Image } from 'lucide-react';
 
 export default function AiChat() {
   const { user } = useAuth();
@@ -16,6 +16,9 @@ export default function AiChat() {
   const [model, setModel] = useState('claude-sonnet-4-20250514');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const photoRef = useRef(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoData, setPhotoData] = useState(null);
 
   const isParent = user?.role === 'parent';
   const isDashboard = user?.role === 'dashboard';
@@ -38,18 +41,52 @@ export default function AiChat() {
     setStatus({ configured: true, provider, model });
   };
 
+  const handlePhotoSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    // Compress and convert to base64
+    const img = new window.Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const max = 1024;
+      let w = img.width, h = img.height;
+      if (w > max) { h = (h * max) / w; w = max; }
+      if (h > max) { w = (w * max) / h; h = max; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      setPhotoPreview(canvas.toDataURL('image/jpeg', 0.7));
+      canvas.toBlob((blob) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = reader.result.split(',')[1];
+          setPhotoData({ base64, mediaType: 'image/jpeg' });
+        };
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', 0.7);
+    };
+    img.src = URL.createObjectURL(file);
+    e.target.value = '';
+  };
+
+  const clearPhoto = () => { setPhotoPreview(null); setPhotoData(null); };
+
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || loading) return;
+    if ((!input.trim() && !photoData) || loading) return;
 
     const userMsg = input.trim();
+    const hasPhoto = !!photoData;
+    const preview = photoPreview;
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    clearPhoto();
+    setMessages(prev => [...prev, { role: 'user', content: userMsg || (hasPhoto ? '📸 [Photo]' : ''), image: preview }]);
     setLoading(true);
 
     try {
-      const history = messages.map(m => ({ role: m.role, content: m.content }));
-      const res = await api.post('/ai/chat', { message: userMsg, history });
+      const history = messages.filter(m => !m.image).map(m => ({ role: m.role, content: m.content }));
+      const body = { message: userMsg || 'What items can you see in this photo?', history };
+      if (hasPhoto) body.imageData = photoData;
+      const res = await api.post('/ai/chat', body);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: res.data.reply,
@@ -177,6 +214,7 @@ export default function AiChat() {
                       ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-bl-md'
                       : 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-bl-md'
                 }`}>
+                  {msg.image && <img src={msg.image} alt="" className="rounded-lg mb-1 max-h-32" />}
                   <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                   {msg.actions?.length > 0 && (
                     <div className="mt-2 space-y-1">
@@ -215,15 +253,30 @@ export default function AiChat() {
 
           {/* Input */}
           {status.configured && (
-            <form onSubmit={sendMessage} className="p-3 border-t border-slate-100 dark:border-slate-700 flex gap-2">
-              <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
-                className="input-field text-sm flex-1 py-2" placeholder="Ask anything..."
-                disabled={loading} />
-              <button type="submit" disabled={loading || !input.trim()}
-                className="btn-primary px-3 py-2 disabled:opacity-40">
-                <Send size={16} />
-              </button>
-            </form>
+            <div className="p-3 border-t border-slate-100 dark:border-slate-700">
+              {photoPreview && (
+                <div className="mb-2 relative inline-block">
+                  <img src={photoPreview} alt="Preview" className="h-16 rounded-lg" />
+                  <button onClick={clearPhoto} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs">
+                    <X size={10} />
+                  </button>
+                </div>
+              )}
+              <form onSubmit={sendMessage} className="flex gap-2">
+                <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
+                  className="input-field text-sm flex-1 py-2" placeholder={photoData ? "What's in this photo?" : "Ask anything..."}
+                  disabled={loading} />
+                <input ref={photoRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoSelect} className="hidden" />
+                <button type="button" onClick={() => photoRef.current?.click()}
+                  className={`btn-secondary px-2.5 py-2 ${photoData ? 'ring-2 ring-family-400' : ''}`} disabled={loading}>
+                  <Camera size={16} />
+                </button>
+                <button type="submit" disabled={loading || (!input.trim() && !photoData)}
+                  className="btn-primary px-3 py-2 disabled:opacity-40">
+                  <Send size={16} />
+                </button>
+              </form>
+            </div>
           )}
         </div>
       )}

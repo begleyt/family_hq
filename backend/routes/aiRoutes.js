@@ -201,6 +201,28 @@ async function executeTool(toolName, toolInput, userId, userRole, displayName) {
       return `Added ${added} ingredients to grocery list for "${grRecipeName || 'recipe'}"${skipped > 0 ? ` (${skipped} already on list)` : ''}.`;
     }
 
+    case 'add_pantry_items': {
+      if (userRole !== 'parent') return 'Only parents can add pantry items.';
+      const { items: pantryItems } = toolInput;
+      if (!pantryItems || !pantryItems.length) return 'No items to add.';
+      let added = 0, updated = 0;
+      for (const item of pantryItems) {
+        const name = (item.name || '').trim();
+        if (!name) continue;
+        const existing = db.prepare('SELECT id FROM pantry_items WHERE name = ? COLLATE NOCASE').get(name);
+        if (existing) {
+          db.prepare('UPDATE pantry_items SET quantity = ?, location = COALESCE(?, location), updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+            .run(item.quantity || '1', item.location || null, existing.id);
+          updated++;
+        } else {
+          db.prepare('INSERT INTO pantry_items (name, quantity, category, location, added_by) VALUES (?, ?, ?, ?, ?)')
+            .run(name, item.quantity || '1', item.category || 'other', item.location || 'pantry', userId);
+          added++;
+        }
+      }
+      return `Pantry updated: ${added} new items added${updated > 0 ? `, ${updated} existing items updated` : ''}.`;
+    }
+
     case 'add_recipe': {
       if (userRole !== 'parent') return 'Only parents can add recipes.';
       const { recipe_title, recipe_description, recipe_ingredients, recipe_instructions, recipe_prep_time, recipe_cook_time, recipe_servings, recipe_tags } = toolInput;
@@ -373,6 +395,29 @@ const AI_TOOLS = [
     },
   },
   {
+    name: 'add_pantry_items',
+    description: 'Add multiple items to the family pantry inventory. Use when the user shares a photo of their fridge, freezer, or pantry shelves, or tells you what they have. Identify each item with estimated quantity and the storage location. Updates existing items if they already exist.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Item name (e.g., "whole milk", "cheddar cheese")' },
+              quantity: { type: 'string', description: 'Estimated quantity (e.g., "1 gallon", "2 bags", "half full")' },
+              location: { type: 'string', enum: ['fridge', 'freezer', 'pantry', 'cabinet', 'counter'], description: 'Where it is stored' },
+              category: { type: 'string', enum: ['produce', 'dairy', 'meat', 'bakery', 'frozen', 'pantry', 'beverages', 'snacks', 'household', 'other'] },
+            },
+            required: ['name'],
+          },
+        },
+      },
+      required: ['items'],
+    },
+  },
+  {
     name: 'add_recipe_to_grocery',
     description: 'Add recipe ingredients to the grocery/shopping list. Only for parents. Checks for duplicates — items already on the list are skipped. Tags each item with the recipe name. Use this when adding a meal to the planner if the user wants ingredients added, or when explicitly asked to shop for a recipe.',
     input_schema: {
@@ -467,8 +512,8 @@ router.put('/config', roleCheck('parent'), (req, res) => {
 
 // POST /api/ai/chat
 router.post('/chat', async (req, res) => {
-  const { message, history } = req.body;
-  if (!message) return res.status(400).json({ error: 'message required' });
+  const { message, history, imageData } = req.body;
+  if (!message && !imageData) return res.status(400).json({ error: 'message or image required' });
 
   const config = getAiConfig();
   if (!config || !config.api_key) {
@@ -494,6 +539,8 @@ CAPABILITIES:
 - If the user is a PARENT, you can ADD RECIPES to the recipe book using add_recipe. When adding a recipe, include ingredients and instructions.
 - When adding a meal, you can optionally link it to a recipe from the RECIPE BOOK by recipe ID.
 - If the user is a PARENT, you can ADD RECIPE INGREDIENTS TO THE GROCERY LIST using add_recipe_to_grocery. This checks for duplicates automatically. Each item is tagged with the recipe name. When adding a meal with a recipe, proactively ask if they want the ingredients added to the shopping list.
+- If the user is a PARENT, you can ADD ITEMS TO THE PANTRY using add_pantry_items. Use this when the user shares a photo of their fridge/pantry or tells you what they have. Identify each item with quantity, location, and category.
+- When the user shares a photo of food items, identify everything visible and ASK: "Would you like me to add these to your pantry inventory, your grocery list, or both?"
 - If the user is a PARENT, you can APPROVE or DENY open requests using approve_request and deny_request tools. Use the request ID from the OPEN REQUESTS list. When approving grocery_item requests, the item is automatically added to the grocery list.
 - When approving/denying, the requester is automatically notified.
 - Keep responses short (1-3 sentences). Be fun and family-friendly!`;
@@ -505,7 +552,18 @@ CAPABILITIES:
       messages.push({ role: h.role, content: h.content });
     }
   }
-  messages.push({ role: 'user', content: message });
+  // Build user message with optional image
+  if (imageData) {
+    const content = [];
+    if (message) content.push({ type: 'text', text: message });
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: imageData.mediaType || 'image/jpeg', data: imageData.base64 }
+    });
+    messages.push({ role: 'user', content });
+  } else {
+    messages.push({ role: 'user', content: message });
+  }
 
   try {
     const client = new Anthropic({ apiKey: config.api_key });
