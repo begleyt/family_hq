@@ -36,6 +36,11 @@ export default function MealPlannerPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [recipeUrl, setRecipeUrl] = useState('');
+  const [selectedRecipeId, setSelectedRecipeId] = useState(null);
+  const [recipes, setRecipes] = useState([]);
+  const [recipeSearch, setRecipeSearch] = useState('');
+
+  useEffect(() => { if (showForm && isParent) fetchRecipes(); }, [showForm]);
 
   const fetchMeals = () => {
     api.get(`/meals?week=${formatDate(weekStart)}`).then(res => { setMeals(res.data.meals); setLoading(false); });
@@ -56,11 +61,28 @@ export default function MealPlannerPage() {
     return meals.find(m => m.meal_date === dateStr && m.meal_type === type);
   };
 
+  const fetchRecipes = () => {
+    api.get('/recipes').then(res => setRecipes(res.data)).catch(() => {});
+  };
+
+  const selectRecipe = (recipe) => {
+    setTitle(recipe.title);
+    setDescription(recipe.description || '');
+    setRecipeUrl(recipe.source_url || '');
+    setSelectedRecipeId(recipe.id);
+    setRecipeSearch('');
+  };
+
+  const clearRecipe = () => {
+    setSelectedRecipeId(null);
+    setTitle(''); setDescription(''); setRecipeUrl('');
+  };
+
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!title.trim()) return;
-    await api.post('/meals', { mealDate: showForm.date, mealType: showForm.mealType, title, description, recipeUrl });
-    setTitle(''); setDescription(''); setRecipeUrl('');
+    await api.post('/meals', { mealDate: showForm.date, mealType: showForm.mealType, title, description, recipeUrl, recipeId: selectedRecipeId });
+    setTitle(''); setDescription(''); setRecipeUrl(''); setSelectedRecipeId(null); setRecipeSearch('');
     setShowForm(null);
     fetchMeals();
   };
@@ -223,28 +245,73 @@ export default function MealPlannerPage() {
       {showForm && isParent && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
           <div className="fixed inset-0 bg-black/30" onClick={() => setShowForm(null)} />
-          <div className="relative bg-white rounded-t-2xl md:rounded-2xl w-full md:max-w-md p-5 z-50">
+          <div className="relative bg-white dark:bg-slate-800 rounded-t-2xl md:rounded-2xl w-full md:max-w-md max-h-[85vh] overflow-y-auto p-5 z-50">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">
                 {MEAL_TYPES.find(t => t.value === showForm.mealType)?.emoji}{' '}
                 Add {MEAL_TYPES.find(t => t.value === showForm.mealType)?.label}
               </h2>
-              <button onClick={() => setShowForm(null)} className="p-1.5 rounded-lg hover:bg-slate-100"><X size={20} /></button>
+              <button onClick={() => setShowForm(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={20} /></button>
             </div>
             <p className="text-sm text-slate-500 mb-3">
               {new Date(showForm.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
+
+            {/* Recipe Picker */}
+            {recipes.length > 0 && (
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1 flex items-center gap-1">
+                  <BookOpen size={14} /> Pick from Recipe Book
+                </label>
+                {selectedRecipeId ? (
+                  <div className="flex items-center gap-2 p-2.5 bg-family-50 dark:bg-family-900/30 rounded-xl border border-family-200 dark:border-family-800">
+                    <BookOpen size={16} className="text-family-500 shrink-0" />
+                    <span className="text-sm font-medium flex-1">{title}</span>
+                    <button type="button" onClick={clearRecipe} className="text-slate-400 hover:text-red-500"><X size={16} /></button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input value={recipeSearch} onChange={e => setRecipeSearch(e.target.value)}
+                      className="input-field text-sm" placeholder="Search recipes..." />
+                    {recipeSearch && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-700 rounded-xl shadow-lg border border-slate-100 dark:border-slate-600 z-10 max-h-40 overflow-y-auto">
+                        {recipes.filter(r => r.title.toLowerCase().includes(recipeSearch.toLowerCase())).length === 0 ? (
+                          <p className="p-3 text-xs text-slate-400">No matching recipes</p>
+                        ) : (
+                          recipes.filter(r => r.title.toLowerCase().includes(recipeSearch.toLowerCase())).map(r => (
+                            <button key={r.id} type="button" onClick={() => selectRecipe(r)}
+                              className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-600 flex items-center gap-2 text-sm transition-colors">
+                              <BookOpen size={14} className="text-family-400 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <span className="font-medium">{r.title}</span>
+                                {r.tags && <span className="text-[10px] text-slate-400 ml-2">{r.tags}</span>}
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-center gap-2 my-2">
+                  <div className="flex-1 border-t border-slate-200 dark:border-slate-600" />
+                  <span className="text-xs text-slate-400">or enter manually</span>
+                  <div className="flex-1 border-t border-slate-200 dark:border-slate-600" />
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleAdd} className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">What's cooking?</label>
-                <input value={title} onChange={e => setTitle(e.target.value)} className="input-field" placeholder="e.g., Spaghetti & Meatballs" required />
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">What's cooking?</label>
+                <input value={title} onChange={e => { setTitle(e.target.value); if (selectedRecipeId) setSelectedRecipeId(null); }} className="input-field" placeholder="e.g., Spaghetti & Meatballs" required />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">Notes (optional)</label>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Notes (optional)</label>
                 <input value={description} onChange={e => setDescription(e.target.value)} className="input-field" placeholder="e.g., Use grandma's recipe" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">Recipe Link (optional)</label>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Recipe Link (optional)</label>
                 <input value={recipeUrl} onChange={e => setRecipeUrl(e.target.value)} className="input-field" placeholder="https://..." />
               </div>
               <button type="submit" className="btn-primary w-full">Add to Plan</button>

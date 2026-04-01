@@ -9,7 +9,10 @@ router.use(authMiddleware);
 // GET /api/recipes
 router.get('/', (req, res) => {
   const { search, tag } = req.query;
-  let sql = 'SELECT r.*, u.display_name as created_by_name FROM recipes r LEFT JOIN users u ON r.created_by = u.id WHERE 1=1';
+  let sql = `SELECT r.*, u.display_name as created_by_name,
+    (SELECT COUNT(*) FROM recipe_favorites rf WHERE rf.recipe_id = r.id) as favorite_count,
+    (SELECT COUNT(*) FROM recipe_favorites rf WHERE rf.recipe_id = r.id AND rf.user_id = ${req.user.id}) as is_favorited
+    FROM recipes r LEFT JOIN users u ON r.created_by = u.id WHERE 1=1`;
   const params = [];
 
   if (search) { sql += ' AND (r.title LIKE ? OR r.ingredients LIKE ? OR r.tags LIKE ?)'; params.push(`%${search}%`, `%${search}%`, `%${search}%`); }
@@ -58,6 +61,28 @@ router.put('/:id', roleCheck('parent'), (req, res) => {
 router.delete('/:id', roleCheck('parent'), (req, res) => {
   getDb().prepare('DELETE FROM recipes WHERE id = ?').run(req.params.id);
   res.json({ message: 'Recipe deleted' });
+});
+
+// POST /api/recipes/:id/favorite - toggle favorite (any user)
+router.post('/:id/favorite', (req, res) => {
+  const existing = getDb().prepare('SELECT id FROM recipe_favorites WHERE recipe_id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (existing) {
+    getDb().prepare('DELETE FROM recipe_favorites WHERE id = ?').run(existing.id);
+    res.json({ favorited: false });
+  } else {
+    getDb().prepare('INSERT INTO recipe_favorites (recipe_id, user_id) VALUES (?, ?)').run(req.params.id, req.user.id);
+    res.json({ favorited: true });
+  }
+});
+
+// GET /api/recipes/:id/favorites - who favorited
+router.get('/:id/favorites', (req, res) => {
+  const favs = getDb().prepare(`
+    SELECT u.display_name, u.avatar_emoji, u.avatar_url
+    FROM recipe_favorites rf JOIN users u ON rf.user_id = u.id
+    WHERE rf.recipe_id = ?
+  `).all(req.params.id);
+  res.json(favs);
 });
 
 module.exports = router;

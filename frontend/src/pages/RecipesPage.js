@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
-import { Plus, X, Search, ChefHat, Clock, Users, Tag, ExternalLink, Edit, Trash2 } from 'lucide-react';
+import { Plus, X, Search, ChefHat, Clock, Users, Tag, ExternalLink, Edit, Trash2, Star } from 'lucide-react';
+import Avatar from '../components/common/Avatar';
 
 export default function RecipesPage() {
   const { user } = useAuth();
@@ -12,6 +13,8 @@ export default function RecipesPage() {
   const [detail, setDetail] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [favUsers, setFavUsers] = useState([]);
+  const isDashboard = user.role === 'dashboard';
 
   // Form
   const [title, setTitle] = useState('');
@@ -55,6 +58,18 @@ export default function RecipesPage() {
     resetForm(); setShowForm(false); fetchRecipes();
   };
 
+  const toggleFavorite = async (id, e) => {
+    if (e) e.stopPropagation();
+    await api.post(`/recipes/${id}/favorite`);
+    fetchRecipes();
+    if (detail?.id === id) loadFavUsers(id);
+  };
+
+  const loadFavUsers = async (id) => {
+    const res = await api.get(`/recipes/${id}/favorites`);
+    setFavUsers(res.data);
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this recipe?')) return;
     await api.delete(`/recipes/${id}`);
@@ -91,8 +106,16 @@ export default function RecipesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {recipes.map(r => (
-            <div key={r.id} onClick={() => setDetail(r)} className="card cursor-pointer hover:shadow-md transition-shadow">
-              <h3 className="font-semibold text-sm mb-1">{r.title}</h3>
+            <div key={r.id} onClick={() => { setDetail(r); loadFavUsers(r.id); }} className="card cursor-pointer hover:shadow-md transition-shadow relative">
+              <div className="flex items-start justify-between">
+                <h3 className="font-semibold text-sm mb-1 flex-1">{r.title}</h3>
+                {!isDashboard && (
+                  <button onClick={(e) => toggleFavorite(r.id, e)} className="p-1 -mt-0.5 -mr-1 shrink-0">
+                    <Star size={16} className={r.is_favorited ? 'fill-amber-400 text-amber-400' : 'text-slate-300 hover:text-amber-400'} />
+                  </button>
+                )}
+              </div>
+              {r.favorite_count > 0 && <p className="text-[10px] text-amber-500 mb-1">{'\u{2B50}'} {r.favorite_count} favorite{r.favorite_count > 1 ? 's' : ''}</p>}
               {r.description && <p className="text-xs text-slate-500 mb-2 line-clamp-2">{r.description}</p>}
               <div className="flex flex-wrap gap-2 text-xs text-slate-400">
                 {r.prep_time && <span className="flex items-center gap-1"><Clock size={12} /> Prep: {r.prep_time}</span>}
@@ -168,6 +191,27 @@ export default function RecipesPage() {
                   ))}
                 </div>
               )}
+
+              {/* Favorites */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700">
+                {!isDashboard && (
+                  <button onClick={() => toggleFavorite(detail.id)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
+                      detail.is_favorited ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-amber-500'
+                    }`}>
+                    <Star size={16} className={detail.is_favorited ? 'fill-amber-400 text-amber-400' : ''} />
+                    {detail.is_favorited ? 'Favorited' : 'Favorite'}
+                  </button>
+                )}
+                {favUsers.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-slate-400 mr-1">Loved by:</span>
+                    {favUsers.map((f, i) => (
+                      <Avatar key={i} url={f.avatar_url} emoji={f.avatar_emoji} size="xs" className="ring-2 ring-white dark:ring-slate-800 -ml-1 first:ml-0" />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
