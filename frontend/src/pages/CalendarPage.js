@@ -449,40 +449,36 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Week Meals */}
+      {/* Week Meals — aligned with calendar columns */}
       {weekMeals.length > 0 && (
-        <div className="mt-4 card">
-          <h2 className="font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2 mb-3">
-            {'\u{1F37D}\u{FE0F}'} This Week's Meals
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
-            {(() => {
-              const days = getWeekDays();
-              const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-              const MEAL_EMOJI = { breakfast: '\u{1F373}', lunch: '\u{1F96A}', dinner: '\u{1F35D}', snack: '\u{1F34E}' };
-              return days.map((day, i) => {
-                const dateStr = day.toISOString().split('T')[0];
-                const dayMeals = weekMeals.filter(m => m.meal_date === dateStr);
-                if (dayMeals.length === 0) return null;
-                const today = isToday(day);
-                return (
-                  <div key={i} className={`rounded-xl p-2.5 ${today ? 'bg-family-50 dark:bg-family-900/20 border border-family-200 dark:border-family-800' : 'bg-slate-50 dark:bg-slate-700'}`}>
-                    <p className={`text-xs font-semibold mb-1.5 ${today ? 'text-family-600' : 'text-slate-500'}`}>
-                      {DAYS_SHORT[day.getDay()]} {day.getDate()}
-                    </p>
-                    <div className="space-y-1">
-                      {dayMeals.map(m => (
-                        <div key={m.id} className="flex items-center gap-1.5">
-                          <span className="text-xs">{MEAL_EMOJI[m.meal_type] || '\u{1F37D}'}</span>
-                          <span className="text-xs text-slate-700 dark:text-slate-200 truncate">{m.title}</span>
+        <div className="mt-0 card p-0 overflow-hidden border-t-0 rounded-t-none">
+          {(() => {
+            const days = getWeekDays();
+            const MEAL_EMOJI = { breakfast: '\u{1F373}', lunch: '\u{1F96A}', dinner: '\u{1F35D}', snack: '\u{1F34E}' };
+            return (
+              <div className="grid grid-cols-7">
+                {days.map((day, i) => {
+                  const dateStr = day.toISOString().split('T')[0];
+                  const dayMeals = weekMeals.filter(m => m.meal_date === dateStr);
+                  const today = isToday(day);
+                  return (
+                    <div key={i} className={`p-2 border-r last:border-r-0 border-slate-100 dark:border-slate-700 min-h-[40px] ${today ? 'bg-family-50/30 dark:bg-family-900/10' : ''}`}>
+                      {dayMeals.length > 0 ? (
+                        <div className="space-y-1">
+                          {dayMeals.map(m => (
+                            <div key={m.id} className="flex items-start gap-1">
+                              <span className="text-[11px] mt-0.5">{MEAL_EMOJI[m.meal_type] || '\u{1F37D}'}</span>
+                              <span className="text-[11px] text-slate-600 dark:text-slate-300 leading-tight">{m.title}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      ) : null}
                     </div>
-                  </div>
-                );
-              }).filter(Boolean);
-            })()}
-          </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 
