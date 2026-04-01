@@ -347,7 +347,7 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
                         <button onClick={() => toggleComments(msg.id)}
                           className="text-[10px] text-slate-500 hover:text-family-600 flex items-center gap-0.5">
-                          <MessageCircle size={10} /> {msg.comment_count > 0 ? msg.comment_count : ''}
+                          <MessageCircle size={10} />{msg.comment_count > 0 && <span> {msg.comment_count}</span>}
                         </button>
                         {isParent && (
                           <>
