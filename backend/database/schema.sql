@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT NOT NULL CHECK(role IN ('parent', 'teen', 'child', 'dashboard')),
     avatar_emoji TEXT DEFAULT '😊',
     avatar_color TEXT DEFAULT '#6366f1',
+    avatar_url TEXT,
     must_change_password INTEGER DEFAULT 1,
     is_active INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

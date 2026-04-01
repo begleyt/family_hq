@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
-import { Plus, X, RotateCcw, UserX, UserCheck, Edit } from 'lucide-react';
+import { Plus, X, RotateCcw, UserX, UserCheck, Edit, Camera } from 'lucide-react';
+import Avatar from '../components/common/Avatar';
 
 const ROLES = [
   { value: 'parent', label: 'Parent', emoji: '\u{1F9D1}' },
@@ -111,11 +112,33 @@ export default function AdminUsersPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {users.map(u => (
           <div key={u.id} className={`card flex items-center gap-4 ${!u.is_active ? 'opacity-50' : ''}`}>
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0"
-              style={{ backgroundColor: u.avatar_color + '20' }}
-            >
-              {u.avatar_emoji}
+            <div className="relative group cursor-pointer shrink-0" onClick={() => {
+              const input = document.createElement('input');
+              input.type = 'file'; input.accept = 'image/*';
+              input.onchange = async (e) => {
+                const file = e.target.files[0]; if (!file) return;
+                const img = new window.Image();
+                img.onload = () => {
+                  const canvas = document.createElement('canvas');
+                  const max = 300; let w = img.width, h = img.height;
+                  if (w > max) { h = (h * max) / w; w = max; }
+                  canvas.width = w; canvas.height = h;
+                  canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                  canvas.toBlob(async (blob) => {
+                    const fd = new FormData();
+                    fd.append('avatar', new File([blob], 'avatar.jpg', { type: 'image/jpeg' }));
+                    await api.post(`/users/${u.id}/avatar`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                    fetchUsers();
+                  }, 'image/jpeg', 0.8);
+                };
+                img.src = URL.createObjectURL(file);
+              };
+              input.click();
+            }}>
+              <Avatar url={u.avatar_url} emoji={u.avatar_emoji} color={u.avatar_color} size="lg" />
+              <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Camera size={16} className="text-white" />
+              </div>
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold truncate">{u.display_name}</p>

@@ -31,6 +31,7 @@ router.post('/login', (req, res) => {
       role: user.role,
       avatarEmoji: user.avatar_emoji,
       avatarColor: user.avatar_color,
+      avatarUrl: user.avatar_url || null,
       mustChangePassword: !!user.must_change_password
     }
   });

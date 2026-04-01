@@ -5,8 +5,9 @@ import { useTheme } from '../../context/ThemeContext';
 import api from '../../api';
 import {
   LayoutDashboard, Ticket, ShoppingCart, UtensilsCrossed, CalendarDays, BarChart3,
-  Users, LogOut, Menu, X, Bell, CheckCheck, Moon, Sun
+  Users, LogOut, Menu, X, Bell, CheckCheck, Moon, Sun, Camera
 } from 'lucide-react';
+import Avatar from '../common/Avatar';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -32,8 +33,34 @@ const NOTIF_ICON = {
 };
 
 export default function AppShell({ children }) {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { dark, toggle: toggleDark } = useTheme();
+  const avatarInputRef = React.useRef(null);
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    // Compress
+    const img = new window.Image();
+    img.onload = async () => {
+      const canvas = document.createElement('canvas');
+      const max = 300;
+      let w = img.width, h = img.height;
+      if (w > max) { h = (h * max) / w; w = max; }
+      if (h > max) { w = (w * max) / h; h = max; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(async (blob) => {
+        const formData = new FormData();
+        formData.append('avatar', new File([blob], 'avatar.jpg', { type: 'image/jpeg' }));
+        try {
+          const res = await api.post('/users/me/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+          updateUser({ avatarUrl: res.data.avatarUrl });
+        } catch (err) { alert('Upload failed'); }
+      }, 'image/jpeg', 0.8);
+    };
+    img.src = URL.createObjectURL(file);
+  };
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -159,10 +186,7 @@ export default function AppShell({ children }) {
         <h1 className="text-lg font-bold text-family-600">Family HQ</h1>
         <div className="flex items-center gap-1">
           <NotifBell />
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-lg"
-            style={{ backgroundColor: user?.avatarColor + '20' }}>
-            {user?.avatarEmoji}
-          </div>
+          <Avatar url={user?.avatarUrl} emoji={user?.avatarEmoji} color={user?.avatarColor} size="sm" />
         </div>
       </header>
 
@@ -176,8 +200,7 @@ export default function AppShell({ children }) {
               <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-100"><X size={20} /></button>
             </div>
             <div className="flex items-center gap-3 mb-6 p-3 bg-family-50 dark:bg-family-900/30 rounded-xl">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl"
-                style={{ backgroundColor: user?.avatarColor + '30' }}>{user?.avatarEmoji}</div>
+              <Avatar url={user?.avatarUrl} emoji={user?.avatarEmoji} color={user?.avatarColor} size="md" />
               <div>
                 <p className="font-semibold text-sm">{user?.displayName}</p>
                 <p className="text-xs text-slate-500 capitalize">{user?.role}</p>
@@ -209,8 +232,13 @@ export default function AppShell({ children }) {
           <NotifBell />
         </div>
         <div className="flex items-center gap-3 mb-6 p-3 bg-family-50 dark:bg-family-900/30 rounded-xl">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl"
-            style={{ backgroundColor: user?.avatarColor + '30' }}>{user?.avatarEmoji}</div>
+          <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+            <Avatar url={user?.avatarUrl} emoji={user?.avatarEmoji} color={user?.avatarColor} size="md" />
+            <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <Camera size={14} className="text-white" />
+            </div>
+          </div>
+          <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
           <div>
             <p className="font-semibold text-sm">{user?.displayName}</p>
             <p className="text-xs text-slate-500 capitalize">{user?.role}</p>

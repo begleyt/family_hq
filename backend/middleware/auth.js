@@ -12,7 +12,7 @@ function authMiddleware(req, res, next) {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = getDb().prepare('SELECT id, username, display_name, role, avatar_emoji, avatar_color, must_change_password, is_active FROM users WHERE id = ?').get(decoded.id);
+    const user = getDb().prepare('SELECT id, username, display_name, role, avatar_emoji, avatar_color, avatar_url, must_change_password, is_active FROM users WHERE id = ?').get(decoded.id);
 
     if (!user || !user.is_active) {
       return res.status(401).json({ error: 'User not found or inactive' });
@@ -30,6 +30,7 @@ function authMiddleware(req, res, next) {
       role: user.role,
       avatarEmoji: user.avatar_emoji,
       avatarColor: user.avatar_color,
+      avatarUrl: user.avatar_url || null,
       mustChangePassword: !!user.must_change_password
     };
 

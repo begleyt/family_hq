@@ -136,6 +136,14 @@ function runMigrations(db) {
     }
   }
 
+  // Add avatar_url to users
+  const userCols2 = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
+  if (!userCols2.includes('avatar_url')) {
+    console.log('Running migration: adding avatar_url to users...');
+    db.exec('ALTER TABLE users ADD COLUMN avatar_url TEXT');
+    console.log('Migration complete: avatar_url added');
+  }
+
   // Add archived column to requests
   const reqCols3 = db.prepare("PRAGMA table_info(requests)").all().map(c => c.name);
   if (!reqCols3.includes('archived')) {
