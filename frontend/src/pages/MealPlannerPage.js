@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
-import { ChevronLeft, ChevronRight, Plus, X, ExternalLink, Trash2, Ticket, Clock, Users, BookOpen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, ExternalLink, Trash2, Ticket, Clock, Users, BookOpen, ShoppingCart, Check } from 'lucide-react';
 
 const MEAL_TYPES = [
   { value: 'breakfast', label: 'Breakfast', emoji: '\u{1F373}' },
@@ -37,8 +37,12 @@ export default function MealPlannerPage() {
   const [description, setDescription] = useState('');
   const [recipeUrl, setRecipeUrl] = useState('');
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
+  const [selectedRecipeObj, setSelectedRecipeObj] = useState(null);
   const [recipes, setRecipes] = useState([]);
   const [recipeSearch, setRecipeSearch] = useState('');
+  const [showGroceryPrompt, setShowGroceryPrompt] = useState(null);
+  const [groceryIngredients, setGroceryIngredients] = useState([]);
+  const [addingToGrocery, setAddingToGrocery] = useState(false);
 
   useEffect(() => { if (showForm && isParent) fetchRecipes(); }, [showForm]);
 
@@ -70,21 +74,59 @@ export default function MealPlannerPage() {
     setDescription(recipe.description || '');
     setRecipeUrl(recipe.source_url || '');
     setSelectedRecipeId(recipe.id);
+    setSelectedRecipeObj(recipe);
     setRecipeSearch('');
   };
 
   const clearRecipe = () => {
     setSelectedRecipeId(null);
+    setSelectedRecipeObj(null);
     setTitle(''); setDescription(''); setRecipeUrl('');
+  };
+
+  const parseIngredients = (recipe) => {
+    const lines = (recipe.ingredients || '').split('\n').filter(l => l.trim());
+    return lines.map(line => {
+      const clean = line.replace(/^[-*•]\s*/, '').trim();
+      const match = clean.match(/^([\d½¼¾⅓⅔/.\s]+(?:cup|cups|lb|lbs|oz|tsp|tbsp|gallon|gallons|can|cans|pkg|bunch|head|clove|cloves|piece|pieces)?s?)\s+(.+)$/i);
+      if (match) return { name: match[2].trim(), quantity: match[1].trim(), include: true };
+      return { name: clean, quantity: '1', include: true };
+    });
   };
 
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!title.trim()) return;
     await api.post('/meals', { mealDate: showForm.date, mealType: showForm.mealType, title, description, recipeUrl, recipeId: selectedRecipeId });
-    setTitle(''); setDescription(''); setRecipeUrl(''); setSelectedRecipeId(null); setRecipeSearch('');
+
+    // If a recipe with ingredients was selected, prompt to add to grocery
+    if (selectedRecipeObj && selectedRecipeObj.ingredients) {
+      const parsed = parseIngredients(selectedRecipeObj);
+      if (parsed.length > 0) {
+        setGroceryIngredients(parsed);
+        setShowGroceryPrompt(selectedRecipeObj.title);
+      }
+    }
+
+    setTitle(''); setDescription(''); setRecipeUrl(''); setSelectedRecipeId(null); setSelectedRecipeObj(null); setRecipeSearch('');
     setShowForm(null);
     fetchMeals();
+  };
+
+  const handleAddToGrocery = async () => {
+    const items = groceryIngredients.filter(i => i.include && i.name.trim());
+    if (items.length === 0) { setShowGroceryPrompt(null); return; }
+    setAddingToGrocery(true);
+    try {
+      const res = await api.post('/grocery/from-recipe', { items, recipeName: showGroceryPrompt });
+      alert(res.data.message);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to add');
+    } finally {
+      setAddingToGrocery(false);
+      setShowGroceryPrompt(null);
+      setGroceryIngredients([]);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -420,6 +462,46 @@ export default function MealPlannerPage() {
                   <Trash2 size={14} /> Remove from Planner
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Grocery Prompt after adding meal with recipe */}
+      {showGroceryPrompt && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="fixed inset-0 bg-black/30" onClick={() => { setShowGroceryPrompt(null); setGroceryIngredients([]); }} />
+          <div className="relative bg-white dark:bg-slate-800 rounded-t-2xl md:rounded-2xl w-full md:max-w-md max-h-[85vh] overflow-y-auto p-5 z-50">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <ShoppingCart size={20} /> Add Ingredients?
+              </h2>
+              <button onClick={() => { setShowGroceryPrompt(null); setGroceryIngredients([]); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={20} /></button>
+            </div>
+            <p className="text-sm text-slate-500 mb-3">
+              Want to add ingredients from <span className="font-medium text-slate-700 dark:text-slate-200">{showGroceryPrompt}</span> to your grocery list?
+            </p>
+            <div className="space-y-1.5 mb-4 max-h-60 overflow-y-auto">
+              {groceryIngredients.map((item, i) => (
+                <div key={i} className={`flex items-center gap-2 p-2 rounded-lg transition-colors ${item.include ? 'bg-slate-50 dark:bg-slate-700' : 'opacity-40'}`}>
+                  <button onClick={() => {
+                    const u = [...groceryIngredients]; u[i] = { ...u[i], include: !u[i].include }; setGroceryIngredients(u);
+                  }} className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${item.include ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'}`}>
+                    {item.include && <Check size={12} className="text-white" />}
+                  </button>
+                  <input value={item.quantity} onChange={e => { const u = [...groceryIngredients]; u[i] = { ...u[i], quantity: e.target.value }; setGroceryIngredients(u); }}
+                    className="w-16 input-field text-xs py-1 px-2 text-center" />
+                  <input value={item.name} onChange={e => { const u = [...groceryIngredients]; u[i] = { ...u[i], name: e.target.value }; setGroceryIngredients(u); }}
+                    className="flex-1 input-field text-xs py-1 px-2" />
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-slate-400 mb-3">{groceryIngredients.filter(i => i.include).length} items selected. Duplicates will be skipped.</p>
+            <div className="flex gap-2">
+              <button onClick={() => { setShowGroceryPrompt(null); setGroceryIngredients([]); }} className="btn-secondary flex-1">No Thanks</button>
+              <button onClick={handleAddToGrocery} disabled={addingToGrocery} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                <ShoppingCart size={16} /> {addingToGrocery ? 'Adding...' : 'Add to List'}
+              </button>
             </div>
           </div>
         </div>
