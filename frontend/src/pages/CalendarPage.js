@@ -280,9 +280,11 @@ export default function CalendarPage() {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-slate-800">Calendar</h1>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowColorConfig(true)} className="btn-secondary text-sm flex items-center gap-1">
-            {'\u{1F3A8}'} Colors
-          </button>
+          {isParent && (
+            <button onClick={() => setShowColorConfig(true)} className="btn-secondary text-sm flex items-center gap-1">
+              {'\u{1F3A8}'} Colors
+            </button>
+          )}
           {isParent && (
             <button onClick={() => setShowConfig(true)} className="btn-secondary text-sm flex items-center gap-1">
               <Settings size={14} /> Setup
