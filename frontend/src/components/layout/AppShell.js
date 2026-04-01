@@ -16,13 +16,13 @@ const navItems = [
   { to: '/requests', icon: Ticket, label: 'Requests' },
   { to: '/grocery', icon: ShoppingCart, label: 'Grocery' },
   { to: '/meals', icon: UtensilsCrossed, label: 'Meals' },
-  { to: '/pantry', icon: Package, label: 'Pantry' },
   { to: '/recipes', icon: BookOpen, label: 'Recipes' },
   { to: '/polls', icon: BarChart3, label: 'Polls' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendar' },
 ];
 
 const adminItems = [
+  { to: '/pantry', icon: Package, label: 'Pantry' },
   { to: '/admin/users', icon: Users, label: 'Family Members' },
 ];
 
