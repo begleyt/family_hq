@@ -213,6 +213,9 @@ function categorizeItem(name) {
   if (/\b(salt and pepper|salt & pepper|black pepper|ground pepper|pepper flake|red pepper flake)/i.test(n)) return 'pantry';
   if (/\b(dried oregano|dried basil|dried thyme|dried parsley|dried dill|dried rosemary)/i.test(n)) return 'pantry';
   if (/\b(lemon juice|lime juice|orange juice concentrate)/i.test(n)) return 'pantry';
+  if (/\b(chicken broth|chicken stock|beef broth|beef stock|vegetable broth|vegetable stock|bone broth)/i.test(n)) return 'pantry';
+  if (/\b(cream of chicken|cream of mushroom|tomato soup|chicken noodle soup)/i.test(n)) return 'pantry';
+  if (/\b(tortilla chip|tortilla chips|corn chip)/i.test(n)) return 'snacks';
 
   // Produce (allow plurals/suffixes: tomato matches tomatoes, diced, etc.)
   if (/\b(lettuc|tomato|onion|garlic|pepper[s,\s]|potato|carrot|celer|broccol|spinach|kale|cucumber|avocado|mushroom|zucchini|squash|corn\b|bean sprout|cilantro|parsley|basil|mint\b|ginger|lemon|lime\b|orange|apple|banana|grape|strawberr|blueberr|raspberr|mango|pineapple|peach|pear\b|melon|watermelon|berr|fruit|vegetab|salad|herb|scallion|shallot|jalape|cabbage|cauliflower|asparagus|artichoke|beet|radish|turnip|sweet potato|green bean|snap pea|bell pepper|chil[li]|fresh |olive[s,\s]|arugula|romaine|endive|fennel|leek|chive|dill\b|rosemary|thyme|sage\b)/i.test(n) && !/oil|vinegar|dried|juice/i.test(n)) return 'produce';
@@ -248,25 +251,70 @@ function categorizeItem(name) {
   return 'other';
 }
 
+// AI-powered categorization for items that regex can't handle
+async function aiCategorizeItems(items) {
+  try {
+    const aiConfig = getDb().prepare('SELECT * FROM ai_config ORDER BY id DESC LIMIT 1').get();
+    if (!aiConfig || !aiConfig.api_key) return items;
+
+    const uncategorized = items.filter(i => (i.category || 'other') === 'other' && i.name);
+    if (uncategorized.length === 0) return items;
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey: aiConfig.api_key });
+
+    const response = await client.messages.create({
+      model: aiConfig.model || 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: `Categorize these grocery items. Return ONLY valid JSON mapping item name to category.
+Categories: produce, dairy, meat, bakery, frozen, pantry, beverages, snacks, household, other
+
+Items:
+${uncategorized.map(i => i.name).join('\n')}
+
+Return: {"item name": "category"}`
+      }]
+    });
+
+    const text = response.content[0]?.text || '{}';
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) {
+      const cats = JSON.parse(match[0]);
+      items.forEach(item => {
+        if ((item.category || 'other') === 'other' && cats[item.name]) {
+          item.category = cats[item.name];
+        }
+      });
+    }
+  } catch (e) {
+    console.error('AI categorize error:', e.message);
+  }
+  return items;
+}
+
+router.aiCategorizeItems = aiCategorizeItems;
+
 // POST /api/grocery/from-recipe - add recipe ingredients to grocery list (parent only)
-router.post('/from-recipe', roleCheck('parent'), (req, res) => {
+router.post('/from-recipe', roleCheck('parent'), async (req, res) => {
   const { items, recipeName } = req.body;
   if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'items array required' });
+
+  // Categorize items, then AI-fix any "other"
+  const categorized = items.filter(i => i.name?.trim()).map(i => ({
+    ...i, name: i.name.trim(), category: i.category || categorizeItem(i.name.trim())
+  }));
+  await aiCategorizeItems(categorized);
 
   let added = 0, skipped = 0;
   const insert = getDb().prepare('INSERT INTO grocery_items (name, quantity, category, added_by, for_recipe) VALUES (?, ?, ?, ?, ?)');
 
-  for (const item of items) {
-    if (!item.name || !item.name.trim()) continue;
-    // Check for duplicates (case-insensitive, unchecked items only)
-    const exists = getDb().prepare('SELECT id FROM grocery_items WHERE name = ? COLLATE NOCASE AND is_checked = 0').get(item.name.trim());
-    if (exists) {
-      skipped++;
-      continue;
-    }
-    const cat = item.category || categorizeItem(item.name.trim());
-    insert.run(item.name.trim(), item.quantity || '1', cat, req.user.id, recipeName || null);
-    trackHistory(item.name.trim(), cat, item.quantity || '1');
+  for (const item of categorized) {
+    const exists = getDb().prepare('SELECT id FROM grocery_items WHERE name = ? COLLATE NOCASE AND is_checked = 0').get(item.name);
+    if (exists) { skipped++; continue; }
+    insert.run(item.name, item.quantity || '1', item.category, req.user.id, recipeName || null);
+    trackHistory(item.name, item.category, item.quantity || '1');
     added++;
   }
 

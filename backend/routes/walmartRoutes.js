@@ -444,8 +444,49 @@ Match rules:
   }
 });
 
-// POST /api/walmart/ai-cleanup - AI merges duplicate product names
+// POST /api/walmart/ai-cleanup - AI backfills generic names and merges duplicates
 router.post('/ai-cleanup', roleCheck('parent'), async (req, res) => {
+  // Step 0: Backfill null generic_names using AI
+  const nullItems = getDb().prepare('SELECT DISTINCT item_name, store FROM price_history WHERE generic_name IS NULL').all();
+  if (nullItems.length > 0) {
+    try {
+      const Anthropic = require('@anthropic-ai/sdk');
+      const aiConfig = getDb().prepare('SELECT * FROM ai_config ORDER BY id DESC LIMIT 1').get();
+      if (aiConfig?.api_key) {
+        const client = new Anthropic({ apiKey: aiConfig.api_key });
+        const backfillResponse = await client.messages.create({
+          model: aiConfig.model || 'claude-sonnet-4-20250514',
+          max_tokens: 1500,
+          messages: [{
+            role: 'user',
+            content: `For each grocery item, extract the generic product name (without brand) and the brand name. Return ONLY valid JSON.
+
+ITEMS:
+${nullItems.map(i => `${i.item_name} (from ${i.store})`).join('\n')}
+
+Return: [{"item_name": "original name", "generic_name": "product without brand", "brand": "brand name or null"}]
+
+Store brand mappings: Great Value=Walmart, Kirkland=Costco, Friendly Farms/Clancy's/Millville/Simply Nature/Happy Farms=Aldi, Good & Gather/Market Pantry=Target, 365=Whole Foods.
+If no brand detected, use the item name as generic_name and brand as null.`
+          }]
+        });
+
+        const bText = backfillResponse.content[0]?.text || '[]';
+        const bMatch = bText.match(/\[[\s\S]*\]/);
+        if (bMatch) {
+          const backfills = JSON.parse(bMatch[0]);
+          const update = getDb().prepare('UPDATE price_history SET generic_name = ?, brand = ? WHERE item_name = ? AND generic_name IS NULL');
+          for (const b of backfills) {
+            if (b.item_name && b.generic_name) {
+              update.run(b.generic_name, b.brand || null, b.item_name);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Backfill error:', e.message);
+    }
+  }
   const aiConfig = getDb().prepare('SELECT * FROM ai_config ORDER BY id DESC LIMIT 1').get();
   if (!aiConfig || !aiConfig.api_key) return res.status(400).json({ error: 'AI not configured' });
 
