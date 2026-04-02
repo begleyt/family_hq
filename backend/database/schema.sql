@@ -138,6 +138,34 @@ CREATE TABLE IF NOT EXISTS message_comments (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Walmart / Price Tracking config
+CREATE TABLE IF NOT EXISTS walmart_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    api_key TEXT,
+    affiliate_id TEXT
+);
+
+-- Price history for grocery items
+CREATE TABLE IF NOT EXISTS price_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_name TEXT NOT NULL,
+    price REAL NOT NULL,
+    store TEXT DEFAULT 'Walmart',
+    recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Walmart product cache
+CREATE TABLE IF NOT EXISTS walmart_products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    search_term TEXT NOT NULL,
+    product_name TEXT,
+    price REAL,
+    product_url TEXT,
+    image_url TEXT,
+    walmart_id TEXT,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Pantry Inventory
 CREATE TABLE IF NOT EXISTS pantry_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

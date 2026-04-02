@@ -152,6 +152,17 @@ function runMigrations(db) {
     console.log('Migration complete: archived column added');
   }
 
+  // Add price fields to grocery_items
+  const groceryPriceCols = db.prepare("PRAGMA table_info(grocery_items)").all().map(c => c.name);
+  if (!groceryPriceCols.includes('estimated_price')) {
+    console.log('Running migration: adding price fields to grocery_items...');
+    db.exec(`
+      ALTER TABLE grocery_items ADD COLUMN estimated_price REAL;
+      ALTER TABLE grocery_items ADD COLUMN walmart_url TEXT;
+    `);
+    console.log('Migration complete: price fields added');
+  }
+
   // Add recipe_name to grocery_items
   const groceryCols2 = db.prepare("PRAGMA table_info(grocery_items)").all().map(c => c.name);
   if (!groceryCols2.includes('for_recipe')) {

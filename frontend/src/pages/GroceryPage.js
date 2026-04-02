@@ -8,6 +8,7 @@ import {
   ChevronDown, ChevronRight, Clock, ShoppingCart, Edit, Camera
 } from 'lucide-react';
 import AiScanButton from '../components/common/AiScanButton';
+import { DollarSign, ExternalLink, TrendingDown, Settings } from 'lucide-react';
 
 const GROCERY_CATEGORIES = [
   { value: 'produce', label: 'Produce', emoji: '\u{1F34E}' },
@@ -35,6 +36,11 @@ export default function GroceryPage() {
   const [category, setCategory] = useState('other');
   const [showAdd, setShowAdd] = useState(false);
   const [editItem, setEditItem] = useState(null);
+  const [lookingUp, setLookingUp] = useState(false);
+  const [estimatedTotal, setEstimatedTotal] = useState(null);
+  const [showWalmartConfig, setShowWalmartConfig] = useState(false);
+  const [walmartKey, setWalmartKey] = useState('');
+  const [walmartConfigured, setWalmartConfigured] = useState(false);
   const [editName, setEditName] = useState('');
   const [editQty, setEditQty] = useState('');
   const [editCat, setEditCat] = useState('other');
@@ -56,6 +62,24 @@ export default function GroceryPage() {
   };
 
   useEffect(() => { fetchItems(); }, []);
+  useEffect(() => { if (isParent) api.get('/walmart/status').then(r => setWalmartConfigured(r.data.configured)).catch(() => {}); }, []);
+
+  const lookupPrices = async () => {
+    setLookingUp(true);
+    try {
+      const res = await api.post('/walmart/lookup-list');
+      setEstimatedTotal(res.data.total);
+      fetchItems();
+      alert(res.data.message);
+    } catch (e) { alert('Price lookup failed'); }
+    finally { setLookingUp(false); }
+  };
+
+  const saveWalmartConfig = async () => {
+    await api.put('/walmart/config', { apiKey: walmartKey });
+    setShowWalmartConfig(false);
+    setWalmartConfigured(true);
+  };
 
   // Close suggestions on outside click
   useEffect(() => {
@@ -200,6 +224,15 @@ export default function GroceryPage() {
         {isParent && (
           <div className="flex items-center gap-2">
             <AiScanButton target="grocery" onComplete={() => fetchItems()} />
+            {walmartConfigured ? (
+              <button onClick={lookupPrices} disabled={lookingUp} className="btn-secondary text-sm flex items-center gap-1">
+                <DollarSign size={14} /> {lookingUp ? 'Looking up...' : 'Get Prices'}
+              </button>
+            ) : (
+              <button onClick={() => setShowWalmartConfig(true)} className="btn-secondary text-sm flex items-center gap-1">
+                <Settings size={14} /> Walmart
+              </button>
+            )}
             <button onClick={loadArchives} className="btn-secondary text-sm flex items-center gap-1" title="Past Lists">
               <Clock size={14} /> Past Lists
             </button>
@@ -212,6 +245,20 @@ export default function GroceryPage() {
           </div>
         )}
       </div>
+
+      {/* Estimated total */}
+      {estimatedTotal > 0 && (
+        <div className="card mb-4 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <DollarSign size={18} className="text-emerald-600" />
+            <div>
+              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Estimated Total</p>
+              <p className="text-xs text-emerald-600">Based on Walmart prices</p>
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">${estimatedTotal.toFixed(2)}</p>
+        </div>
+      )}
 
       {/* Parent: quick add with autocomplete | Kids: request prompt */}
       {isParent ? (
@@ -297,6 +344,16 @@ export default function GroceryPage() {
                           {item.for_recipe && <> &middot; <span className="text-family-500">for {item.for_recipe}</span></>}
                           {item.pantry_id && <> &middot; <span className="text-amber-500">{'\u{1F3E0}'} in {item.pantry_location} ({item.pantry_quantity})</span></>}
                         </p>
+                        {item.estimated_price && (
+                          <p className="text-xs mt-0.5">
+                            <span className="text-emerald-600 font-medium">${item.estimated_price.toFixed(2)}</span>
+                            {item.walmart_url && (
+                              <a href={item.walmart_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-blue-500 hover:text-blue-600 ml-1.5 inline-flex items-center gap-0.5">
+                                <ExternalLink size={10} /> Walmart
+                              </a>
+                            )}
+                          </p>
+                        )}
                       </div>
                       {isParent && (
                         <div className="flex items-center gap-0.5">
@@ -467,6 +524,32 @@ export default function GroceryPage() {
               </div>
               <button type="submit" className="btn-primary w-full">Save Changes</button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Walmart Config Modal */}
+      {showWalmartConfig && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="fixed inset-0 bg-black/30" onClick={() => setShowWalmartConfig(false)} />
+          <div className="relative bg-white dark:bg-slate-800 rounded-t-2xl md:rounded-2xl w-full md:max-w-sm p-5 z-50">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">Walmart Price Lookup</h2>
+              <button onClick={() => setShowWalmartConfig(false)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={20} /></button>
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 text-xs text-blue-700 dark:text-blue-300 mb-3 space-y-1">
+              <p className="font-semibold">Setup:</p>
+              <p>1. Apply at affiliates.walmart.com</p>
+              <p>2. Get your API key once approved</p>
+              <p>3. Paste it below</p>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">API Key</label>
+                <input value={walmartKey} onChange={e => setWalmartKey(e.target.value)} className="input-field text-sm" placeholder="Your Walmart affiliate API key" type="password" />
+              </div>
+              <button onClick={saveWalmartConfig} className="btn-primary w-full">Save</button>
+            </div>
           </div>
         </div>
       )}
