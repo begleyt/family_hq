@@ -5,6 +5,7 @@ import {
   DollarSign, TrendingUp, TrendingDown, ShoppingCart, Store,
   ChevronDown, ChevronUp, Receipt, Search, ArrowRight
 } from 'lucide-react';
+import ReceiptScanner from '../components/common/ReceiptScanner';
 
 export default function SpendingPage() {
   const { user } = useAuth();
@@ -58,7 +59,10 @@ export default function SpendingPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800 mb-4">Grocery Spending</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold text-slate-800">Grocery Spending</h1>
+        <ReceiptScanner onComplete={() => window.location.reload()} />
+      </div>
 
       {/* Stats Cards */}
       {stats && (
