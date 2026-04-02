@@ -255,7 +255,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 gap-3 mb-6">
         <div className="card flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center"><Ticket size={20} className="text-amber-600" /></div>
           <div><p className="text-2xl font-bold">{stats.openRequests}</p><p className="text-xs text-slate-500">Open Requests</p></div>
@@ -263,14 +263,6 @@ export default function DashboardPage() {
         <div className="card flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center"><ShoppingCart size={20} className="text-emerald-600" /></div>
           <div><p className="text-2xl font-bold">{stats.groceryTotal}</p><p className="text-xs text-slate-500">Grocery Items</p></div>
-        </div>
-        <div className="card flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center"><UtensilsCrossed size={20} className="text-blue-600" /></div>
-          <div><p className="text-2xl font-bold">{stats.todayMealCount}</p><p className="text-xs text-slate-500">Today's Meals</p></div>
-        </div>
-        <div className="card flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-family-100 flex items-center justify-center"><Users size={20} className="text-family-600" /></div>
-          <div><p className="text-2xl font-bold">{stats.familyCount}</p><p className="text-xs text-slate-500">Family Members</p></div>
         </div>
       </div>
 
@@ -553,26 +545,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Quick Actions */}
-      {!isDashboard && <div className="mt-4 card">
-        <h2 className="font-semibold text-slate-700 mb-3">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <Link to="/requests" className="flex flex-col items-center gap-2 p-4 bg-amber-50 rounded-xl hover:bg-amber-100 transition-colors">
-            <span className="text-2xl">{'\u{1F4DD}'}</span><span className="text-xs font-medium text-amber-700">New Request</span>
-          </Link>
-          <Link to="/grocery" className="flex flex-col items-center gap-2 p-4 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors">
-            <span className="text-2xl">{'\u{1F6D2}'}</span><span className="text-xs font-medium text-emerald-700">Grocery List</span>
-          </Link>
-          <Link to="/meals" className="flex flex-col items-center gap-2 p-4 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors">
-            <span className="text-2xl">{'\u{1F37D}\u{FE0F}'}</span><span className="text-xs font-medium text-blue-700">Meal Plan</span>
-          </Link>
-          {isParent && (
-            <Link to="/admin/users" className="flex flex-col items-center gap-2 p-4 bg-family-50 rounded-xl hover:bg-family-100 transition-colors">
-              <span className="text-2xl">{'\u{1F46A}'}</span><span className="text-xs font-medium text-family-700">Add Family</span>
-            </Link>
-          )}
-        </div>
-      </div>}
     </div>
   );
 }

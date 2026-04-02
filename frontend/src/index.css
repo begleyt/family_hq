@@ -4,6 +4,7 @@
 
 @layer base {
   * { -webkit-tap-highlight-color: transparent; }
+  html, body { overflow-x: hidden; width: 100%; }
   body { @apply bg-slate-50 text-slate-800 antialiased dark:bg-slate-900 dark:text-slate-100; }
 }
 

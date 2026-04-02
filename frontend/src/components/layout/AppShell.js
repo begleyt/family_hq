@@ -175,7 +175,7 @@ export default function AppShell({ children }) {
   );
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
+    <div className="min-h-screen flex flex-col md:flex-row overflow-x-hidden">
       {/* Mobile Header */}
       <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 sticky top-0 z-40">
         <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 rounded-xl hover:bg-slate-100">
@@ -268,10 +268,13 @@ export default function AppShell({ children }) {
         </div>
       </main>
 
-      {/* Mobile Bottom Tab Bar */}
+      {/* Mobile Bottom Tab Bar — only 5 core pages */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 flex justify-around items-center px-2 pt-1 pb-safe z-40">
-        {navItems.map((item) => <MobileNavItem key={item.to} {...item} />)}
-        {user?.role === 'parent' && <MobileNavItem to="/admin/users" icon={Users} label="Family" />}
+        <MobileNavItem to="/" icon={LayoutDashboard} label="Home" />
+        <MobileNavItem to="/requests" icon={Ticket} label="Requests" />
+        <MobileNavItem to="/grocery" icon={ShoppingCart} label="Grocery" />
+        <MobileNavItem to="/meals" icon={UtensilsCrossed} label="Meals" />
+        <MobileNavItem to="/calendar" icon={CalendarDays} label="Calendar" />
       </nav>
 
       {/* AI Chat */}
