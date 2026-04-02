@@ -33,7 +33,12 @@ router.get('/immich-proxy/:assetId/:size', async (req, res) => {
     rejectUnauthorized: false,
   }, (proxyRes) => {
     res.set('Content-Type', proxyRes.headers['content-type'] || 'image/jpeg');
-    res.set('Cache-Control', 'public, max-age=86400');
+    if (proxyRes.statusCode >= 200 && proxyRes.statusCode < 300) {
+      res.set('Cache-Control', 'public, max-age=86400');
+    } else {
+      res.set('Cache-Control', 'no-cache');
+    }
+    res.status(proxyRes.statusCode);
     proxyRes.pipe(res);
   });
   proxyReq.on('error', () => res.status(500).send('Proxy error'));

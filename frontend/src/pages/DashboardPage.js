@@ -155,8 +155,14 @@ export default function DashboardPage() {
         await api.post('/messages', { content: newMessage });
       }
       setNewMessage('');
+      const hadPhoto = !!photoFile;
       clearPhoto();
-      fetchMessages();
+      if (hadPhoto) {
+        // Give Immich time to generate thumbnail before fetching
+        setTimeout(() => fetchMessages(), 2000);
+      } else {
+        fetchMessages();
+      }
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to post');
     } finally { setPosting(false); }
