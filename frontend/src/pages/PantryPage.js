@@ -3,8 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import {
   Plus, X, Search, Edit, Trash2, AlertTriangle, ShoppingCart,
-  Refrigerator, Snowflake, Package, Coffee, Home
+  Refrigerator, Snowflake, Package, Coffee, Home, Camera
 } from 'lucide-react';
+import AiScanButton from '../components/common/AiScanButton';
 
 const LOCATIONS = [
   { value: 'fridge', label: 'Fridge', emoji: '\u{1F9CA}', icon: Refrigerator },
@@ -98,9 +99,12 @@ export default function PantryPage() {
           </p>
         </div>
         {isParent && (
-          <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary flex items-center gap-2 text-sm">
-            <Plus size={18} /> Add Item
-          </button>
+          <div className="flex items-center gap-2">
+            <AiScanButton target="pantry" onComplete={() => fetchItems()} />
+            <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary flex items-center gap-2 text-sm">
+              <Plus size={18} /> Add Item
+            </button>
+          </div>
         )}
       </div>
 

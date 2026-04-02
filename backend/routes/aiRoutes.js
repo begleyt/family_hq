@@ -179,6 +179,25 @@ async function executeTool(toolName, toolInput, userId, userRole, displayName) {
       return `Added "${meal_title}" to ${meal_type || 'dinner'} on ${meal_date}.`;
     }
 
+    case 'add_grocery_items': {
+      if (userRole !== 'parent') return 'Only parents can add grocery items.';
+      const { grocery_items: gItems } = toolInput;
+      if (!gItems || !gItems.length) return 'No items to add.';
+      const groceryRouter = require('./groceryRoutes');
+      let gAdded = 0, gSkipped = 0;
+      for (const item of gItems) {
+        const name = (item.name || '').trim();
+        if (!name) continue;
+        const exists = db.prepare('SELECT id FROM grocery_items WHERE name = ? COLLATE NOCASE AND is_checked = 0').get(name);
+        if (exists) { gSkipped++; continue; }
+        const cat = groceryRouter.categorizeItem ? groceryRouter.categorizeItem(name) : 'other';
+        db.prepare('INSERT INTO grocery_items (name, quantity, category, added_by) VALUES (?, ?, ?, ?)')
+          .run(name, item.quantity || '1', cat, userId);
+        gAdded++;
+      }
+      return `Added ${gAdded} items to grocery list${gSkipped > 0 ? ` (${gSkipped} already on list)` : ''}.`;
+    }
+
     case 'add_recipe_to_grocery': {
       if (userRole !== 'parent') return 'Only parents can add to the grocery list.';
       const { recipe_name: grRecipeName, ingredients: grIngredients } = toolInput;
@@ -392,6 +411,27 @@ const AI_TOOLS = [
         recipe_id: { type: 'integer', description: 'Optional recipe ID from the recipe book to link' },
       },
       required: ['meal_title', 'meal_date', 'meal_type'],
+    },
+  },
+  {
+    name: 'add_grocery_items',
+    description: 'Add multiple items to the grocery/shopping list at once. Use when the user shares a photo of items they need to buy, or lists multiple items. Auto-categorizes and skips duplicates.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        grocery_items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Item name' },
+              quantity: { type: 'string', description: 'Quantity needed' },
+            },
+            required: ['name'],
+          },
+        },
+      },
+      required: ['grocery_items'],
     },
   },
   {

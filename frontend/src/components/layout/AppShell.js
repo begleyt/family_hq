@@ -183,7 +183,10 @@ export default function AppShell({ children }) {
         <h1 className="text-lg font-bold text-family-600">Family HQ</h1>
         <div className="flex items-center gap-1">
           <NotifBell />
-          <Avatar url={user?.avatarUrl} emoji={user?.avatarEmoji} color={user?.avatarColor} size="sm" />
+          <div className="relative" onClick={() => avatarInputRef.current?.click()}>
+            <Avatar url={user?.avatarUrl} emoji={user?.avatarEmoji} color={user?.avatarColor} size="sm" />
+          </div>
+          <input ref={avatarInputRef} type="file" accept="image/*" capture="user" onChange={handleAvatarSelect} className="hidden" />
         </div>
       </header>
 
@@ -235,7 +238,6 @@ export default function AppShell({ children }) {
               <Camera size={14} className="text-white" />
             </div>
           </div>
-          <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarSelect} className="hidden" />
           <div>
             <p className="font-semibold text-sm">{user?.displayName}</p>
             <p className="text-xs text-slate-500 capitalize">{user?.role}</p>

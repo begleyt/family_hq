@@ -5,8 +5,9 @@ import api from '../api';
 import Avatar from '../components/common/Avatar';
 import {
   Plus, Trash2, Check, X, Ticket, Archive, RotateCcw,
-  ChevronDown, ChevronRight, Clock, ShoppingCart, Edit
+  ChevronDown, ChevronRight, Clock, ShoppingCart, Edit, Camera
 } from 'lucide-react';
+import AiScanButton from '../components/common/AiScanButton';
 
 const GROCERY_CATEGORIES = [
   { value: 'produce', label: 'Produce', emoji: '\u{1F34E}' },
@@ -198,6 +199,7 @@ export default function GroceryPage() {
         </div>
         {isParent && (
           <div className="flex items-center gap-2">
+            <AiScanButton target="grocery" onComplete={() => fetchItems()} />
             <button onClick={loadArchives} className="btn-secondary text-sm flex items-center gap-1" title="Past Lists">
               <Clock size={14} /> Past Lists
             </button>

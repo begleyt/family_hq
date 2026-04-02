@@ -22,16 +22,16 @@ router.get('/unread-count', (req, res) => {
   res.json({ count: result.count });
 });
 
+// PATCH /api/notifications/read-all — MUST be before /:id/read
+router.patch('/read-all', (req, res) => {
+  getDb().prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0').run(req.user.id);
+  res.json({ message: 'All marked as read' });
+});
+
 // PATCH /api/notifications/:id/read
 router.patch('/:id/read', (req, res) => {
   getDb().prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
   res.json({ message: 'Marked as read' });
-});
-
-// PATCH /api/notifications/read-all
-router.patch('/read-all', (req, res) => {
-  getDb().prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0').run(req.user.id);
-  res.json({ message: 'All marked as read' });
 });
 
 module.exports = router;
