@@ -6,6 +6,7 @@ import {
   Refrigerator, Snowflake, Package, Coffee, Home, Camera
 } from 'lucide-react';
 import AiScanButton from '../components/common/AiScanButton';
+import BarcodeScanner from '../components/common/BarcodeScanner';
 
 const LOCATIONS = [
   { value: 'fridge', label: 'Fridge', emoji: '\u{1F9CA}', icon: Refrigerator },
@@ -72,6 +73,18 @@ export default function PantryPage() {
     resetForm(); setShowForm(false); fetchItems();
   };
 
+  const handleBarcodeProduct = async (product, target) => {
+    const name = product.product_name || 'Unknown';
+    const groceryRouter = await import('../components/common/BarcodeScanner');
+    await api.post('/pantry', {
+      name,
+      quantity: product.quantity || '1',
+      location: 'pantry',
+      notes: [product.brand, product.barcode ? `UPC: ${product.barcode}` : null, product.nutrition_grade ? `Nutri-Score: ${product.nutrition_grade.toUpperCase()}` : null].filter(Boolean).join(' | '),
+    });
+    fetchItems();
+  };
+
   const toggleLowStock = async (id) => { await api.patch(`/pantry/${id}/low-stock`); fetchItems(); };
   const addToGrocery = async (id) => {
     const res = await api.post(`/pantry/${id}/to-grocery`);
@@ -100,6 +113,7 @@ export default function PantryPage() {
         </div>
         {isParent && (
           <div className="flex items-center gap-2">
+            <BarcodeScanner continuous autoTarget="pantry" onProductFound={handleBarcodeProduct} />
             <AiScanButton target="pantry" onComplete={() => fetchItems()} />
             <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary flex items-center gap-2 text-sm">
               <Plus size={18} /> Add Item

@@ -73,7 +73,12 @@ export default function GroceryPage() {
       await api.post('/grocery', { name, quantity: product.quantity || '1' });
       fetchItems();
     } else {
-      await api.post('/pantry', { name, quantity: product.quantity || '1', location: 'pantry' });
+      await api.post('/pantry', {
+        name,
+        quantity: product.quantity || '1',
+        location: 'pantry',
+        notes: [product.brand, product.barcode ? `UPC: ${product.barcode}` : null, product.nutrition_grade ? `Nutri-Score: ${product.nutrition_grade.toUpperCase()}` : null].filter(Boolean).join(' | '),
+      });
     }
     alert(`Added "${name}" to ${target}`);
   };

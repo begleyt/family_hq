@@ -1,32 +1,50 @@
 import React, { useState, useRef, useEffect } from 'react';
 import api from '../../api';
-import { Scan, X, Camera, Loader2, ShoppingCart, Package } from 'lucide-react';
+import { Scan, X, Camera, Loader2, ShoppingCart, Package, Check } from 'lucide-react';
 
-export default function BarcodeScanner({ onProductFound }) {
+export default function BarcodeScanner({ onProductFound, continuous = false, autoTarget = null }) {
   const [open, setOpen] = useState(false);
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(false);
   const [manualUpc, setManualUpc] = useState('');
   const [preview, setPreview] = useState(null);
   const [liveSupported, setLiveSupported] = useState(false);
+  const [liveActive, setLiveActive] = useState(false);
+  const [addedItems, setAddedItems] = useState([]);
   const photoRef = useRef(null);
-  const liveRef = useRef(null);
   const html5QrRef = useRef(null);
+  const scannedUPCs = useRef(new Set());
 
-  // Check if live scanning is available (HTTPS only)
   useEffect(() => {
     setLiveSupported(window.location.protocol === 'https:' && !!navigator.mediaDevices?.getUserMedia);
   }, []);
 
   const lookupBarcode = async (upc) => {
+    if (scannedUPCs.current.has(upc)) return; // Skip duplicates in continuous mode
+    scannedUPCs.current.add(upc);
     setLoading(true);
     setPreview(null);
     try {
       const res = await api.get(`/walmart/barcode/${upc}`);
-      setProduct({ ...res.data, barcode: upc });
+      const prod = { ...res.data, barcode: upc };
+
+      if (continuous && autoTarget && prod.product_name) {
+        // Auto-add and continue scanning
+        if (onProductFound) onProductFound(prod, autoTarget);
+        setAddedItems(prev => [...prev, prod.product_name]);
+        setLoading(false);
+        // Restart live scanning if it was active
+        if (liveActive) {
+          setTimeout(() => startLiveScanning(), 500);
+        }
+      } else {
+        setProduct(prod);
+        setLoading(false);
+      }
     } catch (e) {
       setProduct({ barcode: upc, product_name: null, message: 'Lookup failed' });
-    } finally { setLoading(false); }
+      setLoading(false);
+    }
   };
 
   // Photo-based: take photo of barcode, send to AI to read it
@@ -76,34 +94,53 @@ export default function BarcodeScanner({ onProductFound }) {
 
   // Live scanning (HTTPS only)
   const startLiveScanning = async () => {
+    setLiveActive(true);
     try {
       const { Html5Qrcode } = await import('html5-qrcode');
+      if (html5QrRef.current) { try { await html5QrRef.current.stop(); } catch (e) {} }
       const scanner = new Html5Qrcode('barcode-live-reader');
       html5QrRef.current = scanner;
       await scanner.start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 250, height: 100 } },
         async (decodedText) => {
-          await scanner.stop();
-          html5QrRef.current = null;
-          lookupBarcode(decodedText);
+          if (continuous) {
+            // Don't stop — just look up and keep scanning
+            lookupBarcode(decodedText);
+          } else {
+            await scanner.stop();
+            html5QrRef.current = null;
+            setLiveActive(false);
+            lookupBarcode(decodedText);
+          }
         },
         () => {}
       );
     } catch (err) {
       console.error('Live scan error:', err);
+      setLiveActive(false);
     }
+  };
+
+  const stopLiveScanning = async () => {
+    if (html5QrRef.current) { try { await html5QrRef.current.stop(); } catch (e) {} html5QrRef.current = null; }
+    setLiveActive(false);
   };
 
   const handleManualLookup = (e) => {
     e.preventDefault();
-    if (manualUpc.trim()) lookupBarcode(manualUpc.trim());
+    if (manualUpc.trim()) { lookupBarcode(manualUpc.trim()); setManualUpc(''); }
   };
 
   const close = () => {
-    if (html5QrRef.current) { try { html5QrRef.current.stop(); } catch (e) {} html5QrRef.current = null; }
+    stopLiveScanning();
     setOpen(false); setProduct(null); setManualUpc(''); setPreview(null); setLoading(false);
+    setAddedItems([]); scannedUPCs.current.clear();
   };
+
+  useEffect(() => {
+    return () => { if (html5QrRef.current) { try { html5QrRef.current.stop(); } catch (e) {} } };
+  }, []);
 
   return (
     <>
@@ -117,29 +154,45 @@ export default function BarcodeScanner({ onProductFound }) {
           <div className="relative bg-white dark:bg-slate-800 rounded-t-2xl md:rounded-2xl w-full md:max-w-md max-h-[85vh] overflow-y-auto p-5 z-50">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-bold flex items-center gap-2">
-                <Scan size={20} /> {loading ? 'Looking up...' : product ? 'Product' : 'Scan Barcode'}
+                <Scan size={20} /> {loading ? 'Looking up...' : product ? 'Product' : continuous ? 'Continuous Scan' : 'Scan Barcode'}
               </h2>
               <button onClick={close} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={20} /></button>
             </div>
 
-            {/* Not loading and no product = scan options */}
+            {/* Added items feed (continuous mode) */}
+            {continuous && addedItems.length > 0 && (
+              <div className="mb-3 max-h-32 overflow-y-auto">
+                {addedItems.map((name, i) => (
+                  <div key={i} className="flex items-center gap-2 py-1 text-sm text-emerald-600">
+                    <Check size={14} /> Added: {name}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Scan options (not loading, no product shown) */}
             {!loading && !product && (
               <div className="space-y-3">
-                {/* Photo scan */}
                 <input ref={photoRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} className="hidden" />
                 <button onClick={() => photoRef.current?.click()}
                   className="w-full btn-primary flex items-center justify-center gap-2">
                   <Camera size={18} /> Take Photo of Barcode
                 </button>
 
-                {/* Live scan (HTTPS only) */}
                 {liveSupported && (
                   <>
-                    <button onClick={startLiveScanning}
-                      className="w-full btn-secondary flex items-center justify-center gap-2">
-                      <Scan size={18} /> Live Camera Scan
-                    </button>
-                    <div id="barcode-live-reader" ref={liveRef} className="rounded-xl overflow-hidden" />
+                    {!liveActive ? (
+                      <button onClick={startLiveScanning}
+                        className="w-full btn-secondary flex items-center justify-center gap-2">
+                        <Scan size={18} /> {continuous ? 'Start Continuous Scan' : 'Live Camera Scan'}
+                      </button>
+                    ) : (
+                      <button onClick={stopLiveScanning}
+                        className="w-full btn-danger flex items-center justify-center gap-2">
+                        <X size={18} /> Stop Scanning
+                      </button>
+                    )}
+                    <div id="barcode-live-reader" className="rounded-xl overflow-hidden" />
                   </>
                 )}
 
@@ -159,15 +212,15 @@ export default function BarcodeScanner({ onProductFound }) {
 
             {/* Loading */}
             {loading && (
-              <div className="text-center py-8">
+              <div className="text-center py-6">
                 {preview && <img src={preview} alt="Barcode" className="max-h-24 mx-auto rounded-lg mb-3 opacity-50" />}
                 <Loader2 size={24} className="animate-spin mx-auto mb-2 text-family-500" />
-                <p className="text-sm text-slate-500">Reading barcode and looking up product...</p>
+                <p className="text-sm text-slate-500">Reading barcode...</p>
               </div>
             )}
 
-            {/* Product result */}
-            {product && !loading && (
+            {/* Product result (non-continuous mode) */}
+            {product && !loading && !continuous && (
               <div>
                 {product.product_name ? (
                   <div className="space-y-3">
@@ -200,7 +253,7 @@ export default function BarcodeScanner({ onProductFound }) {
                         <Package size={14} /> Add to Pantry
                       </button>
                     </div>
-                    <button onClick={() => { setProduct(null); }} className="btn-secondary w-full text-sm">Scan Another</button>
+                    <button onClick={() => setProduct(null)} className="btn-secondary w-full text-sm">Scan Another</button>
                   </div>
                 ) : (
                   <div className="text-center py-4">
@@ -209,6 +262,14 @@ export default function BarcodeScanner({ onProductFound }) {
                     <button onClick={() => setProduct(null)} className="btn-secondary text-sm">Try Again</button>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Continuous mode: done button */}
+            {continuous && addedItems.length > 0 && !loading && (
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                <p className="text-sm text-emerald-600 font-medium mb-2">{addedItems.length} items added to {autoTarget}</p>
+                <button onClick={close} className="btn-primary w-full text-sm">Done</button>
               </div>
             )}
           </div>
