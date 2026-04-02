@@ -52,10 +52,31 @@ export default function SpendingPage() {
   const allStores = [...new Set(monthly.map(m => m.store))];
   const storeColors = ['bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500', 'bg-teal-500'];
 
-  // Filter comparison
-  const filteredComp = searchComp
-    ? comparison.filter(c => c.name.toLowerCase().includes(searchComp.toLowerCase()))
-    : comparison;
+  const [filterCat, setFilterCat] = useState('');
+  const CATS = [
+    { value: 'produce', label: 'Produce', emoji: '\u{1F34E}' },
+    { value: 'dairy', label: 'Dairy', emoji: '\u{1F95B}' },
+    { value: 'meat', label: 'Meat', emoji: '\u{1F969}' },
+    { value: 'bakery', label: 'Bakery', emoji: '\u{1F35E}' },
+    { value: 'frozen', label: 'Frozen', emoji: '\u{1F9CA}' },
+    { value: 'pantry', label: 'Pantry', emoji: '\u{1F96B}' },
+    { value: 'beverages', label: 'Beverages', emoji: '\u{1F964}' },
+    { value: 'snacks', label: 'Snacks', emoji: '\u{1F36A}' },
+    { value: 'household', label: 'Household', emoji: '\u{1F9F9}' },
+    { value: 'other', label: 'Other', emoji: '\u{1F4E6}' },
+  ];
+
+  let filteredComp = comparison;
+  if (searchComp) filteredComp = filteredComp.filter(c => c.name.toLowerCase().includes(searchComp.toLowerCase()));
+  if (filterCat) filteredComp = filteredComp.filter(c => c.category === filterCat);
+
+  // Group by category for display
+  const compByCategory = {};
+  filteredComp.forEach(item => {
+    const cat = item.category || 'other';
+    if (!compByCategory[cat]) compByCategory[cat] = [];
+    compByCategory[cat].push(item);
+  });
 
   return (
     <div>
@@ -171,47 +192,71 @@ export default function SpendingPage() {
       {/* Store Price Comparison */}
       {tab === 'compare' && (
         <div>
-          <div className="relative mb-4">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input value={searchComp} onChange={e => setSearchComp(e.target.value)}
-              className="input-field pl-9 text-sm" placeholder="Search items..." />
+          <div className="flex gap-2 mb-4">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={searchComp} onChange={e => setSearchComp(e.target.value)}
+                className="input-field pl-9 text-sm" placeholder="Search items..." />
+            </div>
+            <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="input-field text-sm w-auto">
+              <option value="">All Categories</option>
+              {CATS.map(c => <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>)}
+            </select>
           </div>
           {filteredComp.length === 0 ? (
             <div className="card text-center py-8">
               <Store size={32} className="mx-auto mb-2 text-slate-300" />
-              <p className="text-slate-500">{searchComp ? 'No matching items' : 'No price data yet'}</p>
+              <p className="text-slate-500">{searchComp || filterCat ? 'No matching items' : 'No price data yet'}</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {filteredComp.map((item, i) => {
-                const cheapest = item.stores.reduce((a, b) => a.avgPrice < b.avgPrice ? a : b);
-                const savings = item.stores.length > 1
-                  ? item.stores.reduce((a, b) => a.avgPrice > b.avgPrice ? a : b).avgPrice - cheapest.avgPrice
-                  : 0;
+            <div className="space-y-4">
+              {CATS.map(cat => {
+                const catItems = compByCategory[cat.value];
+                if (!catItems || catItems.length === 0) return null;
                 return (
-                  <div key={i} className="card">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-semibold">{item.name}</p>
-                      {savings > 0 && (
-                        <span className="badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                          Save ${savings.toFixed(2)} at {cheapest.store}
-                        </span>
-                      )}
+                  <div key={cat.value}>
+                    <div className="flex items-center gap-2 mb-2 px-1">
+                      <span>{cat.emoji}</span>
+                      <h3 className="text-sm font-semibold text-slate-600">{cat.label}</h3>
+                      <span className="text-xs text-slate-400">({catItems.length})</span>
                     </div>
-                    <div className="flex flex-wrap gap-3">
-                      {item.stores.map((s, j) => (
-                        <div key={j} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${
-                          s.store === cheapest.store && item.stores.length > 1
-                            ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800'
-                            : 'bg-slate-50 dark:bg-slate-700'
-                        }`}>
-                          <span className="font-medium">{s.store}</span>
-                          <span className={`font-bold ${s.store === cheapest.store && item.stores.length > 1 ? 'text-emerald-600' : ''}`}>
-                            ${s.avgPrice.toFixed(2)}
-                          </span>
-                          <span className="text-xs text-slate-400">({s.timesBought}x)</span>
-                        </div>
-                      ))}
+                    <div className="space-y-2">
+                      {catItems.map((item, i) => {
+                        const cheapest = item.stores.reduce((a, b) => a.avgPrice < b.avgPrice ? a : b);
+                        const savings = item.stores.length > 1
+                          ? item.stores.reduce((a, b) => a.avgPrice > b.avgPrice ? a : b).avgPrice - cheapest.avgPrice
+                          : 0;
+                        return (
+                          <div key={i} className="card py-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-sm font-semibold">{item.name}</p>
+                              {savings > 0 && (
+                                <span className="badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                  Save ${savings.toFixed(2)} at {cheapest.store}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {item.stores.map((s, j) => (
+                                <div key={j} className={`px-2.5 py-1 rounded-lg text-sm ${
+                                  s.store === cheapest.store && item.stores.length > 1
+                                    ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800'
+                                    : 'bg-slate-50 dark:bg-slate-700'
+                                }`}>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-medium text-xs">{s.store}</span>
+                                    <span className={`font-bold ${s.store === cheapest.store && item.stores.length > 1 ? 'text-emerald-600' : ''}`}>
+                                      ${s.avgPrice.toFixed(2)}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400">({s.timesBought}x)</span>
+                                  </div>
+                                  {s.brand && <p className="text-[10px] text-slate-400">{s.brand}</p>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );

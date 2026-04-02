@@ -152,6 +152,17 @@ function runMigrations(db) {
     console.log('Migration complete: archived column added');
   }
 
+  // Add generic_name and brand to price_history
+  const phCols = db.prepare("PRAGMA table_info(price_history)").all().map(c => c.name);
+  if (!phCols.includes('generic_name')) {
+    console.log('Running migration: adding generic_name and brand to price_history...');
+    db.exec(`
+      ALTER TABLE price_history ADD COLUMN generic_name TEXT;
+      ALTER TABLE price_history ADD COLUMN brand TEXT;
+    `);
+    console.log('Migration complete: generic_name and brand added');
+  }
+
   // Add price fields to grocery_items
   const groceryPriceCols = db.prepare("PRAGMA table_info(grocery_items)").all().map(c => c.name);
   if (!groceryPriceCols.includes('estimated_price')) {

@@ -116,7 +116,12 @@ export default function ReceiptScanner({ onComplete }) {
                       <div key={i} className="flex items-center justify-between py-2 px-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{item.name}</p>
-                          {item.quantity > 1 && <span className="text-xs text-slate-400">x{item.quantity}</span>}
+                          <p className="text-[10px] text-slate-400">
+                            {item.brand && <span className="text-family-500">{item.brand}</span>}
+                            {item.brand && item.generic_name && ' — '}
+                            {item.generic_name && item.generic_name !== item.name && <span>{item.generic_name}</span>}
+                            {item.quantity > 1 && <span> x{item.quantity}</span>}
+                          </p>
                         </div>
                         <span className="text-sm font-semibold text-emerald-600 ml-2">${item.price?.toFixed(2)}</span>
                       </div>

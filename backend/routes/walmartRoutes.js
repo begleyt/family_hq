@@ -209,27 +209,42 @@ router.get('/monthly-spending', roleCheck('parent'), (req, res) => {
   res.json(data);
 });
 
+// Normalize generic name for fuzzy matching
+function normalizeForComparison(name) {
+  return (name || '').toLowerCase()
+    .replace(/\b(fresh|organic|natural|original|classic|regular|homestyle|home style)\b/gi, '')
+    .replace(/\b(oz|lb|lbs|ct|pk|pack|gallon|gal|qt|pt|fl)\b/gi, '')
+    .replace(/\b\d+(\.\d+)?\s*/g, '')
+    .replace(/[^a-z\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // GET /api/walmart/store-comparison - compare prices across stores per item
 router.get('/store-comparison', roleCheck('parent'), (req, res) => {
+  const groceryRouter = require('./groceryRoutes');
   const items = getDb().prepare(`
-    SELECT item_name, store,
+    SELECT item_name, COALESCE(generic_name, item_name) as generic_name, brand, store,
       ROUND(AVG(price), 2) as avg_price,
       MIN(price) as min_price,
       MAX(price) as max_price,
       COUNT(*) as times_bought,
       MAX(recorded_at) as last_bought
     FROM price_history
-    GROUP BY LOWER(item_name), store
-    ORDER BY item_name, avg_price ASC
+    GROUP BY LOWER(COALESCE(generic_name, item_name)), store
+    ORDER BY generic_name, avg_price ASC
   `).all();
 
-  // Group by item
+  // Group by normalized generic name for fuzzy matching
   const grouped = {};
   items.forEach(i => {
-    const key = i.item_name.toLowerCase();
-    if (!grouped[key]) grouped[key] = { name: i.item_name, stores: [] };
+    const key = normalizeForComparison(i.generic_name);
+    const category = groceryRouter.categorizeItem ? groceryRouter.categorizeItem(i.generic_name) : 'other';
+    if (!grouped[key]) grouped[key] = { name: i.generic_name, category, stores: [] };
     grouped[key].stores.push({
       store: i.store,
+      brand: i.brand || null,
+      itemName: i.item_name,
       avgPrice: i.avg_price,
       minPrice: i.min_price,
       maxPrice: i.max_price,
@@ -238,7 +253,6 @@ router.get('/store-comparison', roleCheck('parent'), (req, res) => {
     });
   });
 
-  // Only items with 1+ store
   const result = Object.values(grouped).filter(g => g.stores.length >= 1)
     .sort((a, b) => a.name.localeCompare(b.name));
   res.json(result);
@@ -333,8 +347,14 @@ router.post('/scan-receipt', roleCheck('parent'), async (req, res) => {
           {
             type: 'text',
             text: `Read this store receipt and extract every item with its price. Return ONLY valid JSON in this exact format, no other text:
-{"store": "store name from receipt", "date": "YYYY-MM-DD", "items": [{"name": "item name", "price": 1.99, "quantity": 1}], "total": 25.99, "tax": 1.50}
-Use the store name from the receipt. Clean up item names to be readable (e.g., "GV WHL MLK GAL" should become "Great Value Whole Milk 1 Gallon"). If you can't read a price, skip that item.`
+{"store": "store name from receipt", "date": "YYYY-MM-DD", "items": [{"name": "full item name", "generic_name": "generic product name", "brand": "brand name or store brand", "price": 1.99, "quantity": 1}], "total": 25.99, "tax": 1.50}
+
+IMPORTANT RULES:
+- "name": The full readable item name including brand (e.g., "Great Value Whole Milk 1 Gallon")
+- "generic_name": The product WITHOUT the brand, normalized for comparison across stores (e.g., "Whole Milk 1 Gallon"). This is key for comparing store brands.
+- "brand": The brand name. For store brands use: "Great Value" (Walmart), "Kirkland" (Costco), "Friendly Farms" (Aldi), "Good & Gather" (Target), "365" (Whole Foods), "Market Pantry" (Target), "Clancy's" (Aldi), "Millville" (Aldi), etc. For name brands use the actual brand (e.g., "Coca-Cola", "Kraft").
+- Clean up abbreviated names (e.g., "GV WHL MLK GAL" → name: "Great Value Whole Milk 1 Gallon", generic_name: "Whole Milk 1 Gallon", brand: "Great Value")
+- If you can't read a price, skip that item.`
           }
         ]
       }],
@@ -351,11 +371,11 @@ Use the store name from the receipt. Clean up item names to be readable (e.g., "
     const storeName = store || receipt.store || 'Unknown Store';
 
     // Record prices in history
-    const insertPrice = getDb().prepare('INSERT INTO price_history (item_name, price, store) VALUES (?, ?, ?)');
+    const insertPrice = getDb().prepare('INSERT INTO price_history (item_name, price, store, generic_name, brand) VALUES (?, ?, ?, ?, ?)');
     let recorded = 0;
     for (const item of (receipt.items || [])) {
       if (item.name && item.price) {
-        insertPrice.run(item.name, item.price, storeName);
+        insertPrice.run(item.name, item.price, storeName, item.generic_name || item.name, item.brand || null);
         recorded++;
       }
     }
