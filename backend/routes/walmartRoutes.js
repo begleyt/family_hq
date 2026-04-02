@@ -473,6 +473,98 @@ Match rules:
   }
 });
 
+// GET /api/walmart/barcode/:upc - look up product by UPC barcode via Open Food Facts
+router.get('/barcode/:upc', async (req, res) => {
+  const { upc } = req.params;
+
+  // Check cache first
+  const cached = getDb().prepare('SELECT * FROM walmart_products WHERE walmart_id = ?').get(upc);
+  if (cached) return res.json(cached);
+
+  try {
+    const response = await new Promise((resolve, reject) => {
+      https.get(`https://world.openfoodfacts.org/api/v2/product/${upc}.json`, (r) => {
+        let data = '';
+        r.on('data', chunk => data += chunk);
+        r.on('end', () => {
+          try { resolve(JSON.parse(data)); } catch (e) { reject(e); }
+        });
+      }).on('error', reject);
+    });
+
+    if (response.status === 1 && response.product) {
+      const p = response.product;
+      const result = {
+        product_name: p.product_name || p.product_name_en || 'Unknown Product',
+        brand: p.brands || null,
+        category: p.categories_tags?.[0]?.replace('en:', '') || null,
+        image_url: p.image_front_small_url || p.image_url || null,
+        barcode: upc,
+        quantity: p.quantity || null,
+        nutrition_grade: p.nutrition_grades || null,
+      };
+
+      // Cache it
+      getDb().prepare('INSERT OR REPLACE INTO walmart_products (search_term, product_name, price, product_url, image_url, walmart_id) VALUES (?, ?, NULL, ?, ?, ?)')
+        .run(result.product_name, result.product_name, '', result.image_url || '', upc);
+
+      return res.json(result);
+    }
+
+    res.json({ product_name: null, barcode: upc, message: 'Product not found in Open Food Facts' });
+  } catch (err) {
+    console.error('Barcode lookup error:', err.message);
+    res.status(500).json({ error: 'Barcode lookup failed' });
+  }
+});
+
+// POST /api/walmart/scan-price-tag - AI reads a store price tag/shelf label photo
+router.post('/scan-price-tag', roleCheck('parent'), async (req, res) => {
+  const { imageData } = req.body;
+  if (!imageData) return res.status(400).json({ error: 'Image required' });
+
+  const aiConfig = getDb().prepare('SELECT * FROM ai_config ORDER BY id DESC LIMIT 1').get();
+  if (!aiConfig || !aiConfig.api_key) return res.status(400).json({ error: 'AI not configured' });
+
+  try {
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey: aiConfig.api_key });
+
+    const response = await client.messages.create({
+      model: aiConfig.model || 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: imageData.mediaType || 'image/jpeg', data: imageData.base64 } },
+          { type: 'text', text: `Read this store price tag or shelf label. Return ONLY valid JSON:
+{"product_name": "full product name", "brand": "brand name", "price": 3.99, "unit_price": "per oz/lb if shown", "store": "store name if visible", "size": "product size if shown"}
+If you can't read it clearly, fill in what you can and set others to null.` }
+        ]
+      }]
+    });
+
+    const text = stripMarkdown(response.content[0]?.text || '{}');
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.json({ error: 'Could not read price tag' });
+
+    const tag = JSON.parse(jsonMatch[0]);
+
+    // Record the price
+    if (tag.product_name && tag.price) {
+      const groceryRouter = require('./groceryRoutes');
+      const genericName = tag.product_name.replace(new RegExp('^' + (tag.brand || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*', 'i'), '').trim() || tag.product_name;
+      getDb().prepare('INSERT INTO price_history (item_name, price, store, generic_name, brand) VALUES (?, ?, ?, ?, ?)')
+        .run(tag.product_name, tag.price, tag.store || 'Unknown Store', genericName, tag.brand || null);
+    }
+
+    res.json(tag);
+  } catch (err) {
+    console.error('Price tag scan error:', err.message);
+    res.status(500).json({ error: 'Scan failed: ' + err.message });
+  }
+});
+
 // POST /api/walmart/ai-cleanup - AI backfills generic names and merges duplicates
 router.post('/ai-cleanup', roleCheck('parent'), async (req, res) => {
   // Step 0: Backfill null generic_names using AI

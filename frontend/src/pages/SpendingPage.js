@@ -6,6 +6,7 @@ import {
   ChevronDown, ChevronUp, Receipt, Search, ArrowRight
 } from 'lucide-react';
 import ReceiptScanner from '../components/common/ReceiptScanner';
+import PriceTagScanner from '../components/common/PriceTagScanner';
 
 export default function SpendingPage() {
   const { user } = useAuth();
@@ -93,6 +94,7 @@ export default function SpendingPage() {
           }} className="btn-secondary text-sm flex items-center gap-1">
             {'\u{2728}'} AI Cleanup
           </button>
+          <PriceTagScanner />
           <ReceiptScanner onComplete={() => window.location.reload()} />
         </div>
       </div>

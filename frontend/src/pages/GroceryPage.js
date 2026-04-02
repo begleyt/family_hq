@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import AiScanButton from '../components/common/AiScanButton';
 import ReceiptScanner from '../components/common/ReceiptScanner';
+import BarcodeScanner from '../components/common/BarcodeScanner';
+import PriceTagScanner from '../components/common/PriceTagScanner';
 import { DollarSign, ExternalLink, TrendingDown, Settings } from 'lucide-react';
 
 const GROCERY_CATEGORIES = [
@@ -64,6 +66,17 @@ export default function GroceryPage() {
 
   useEffect(() => { fetchItems(); }, []);
   useEffect(() => { if (isParent) api.get('/walmart/status').then(r => setWalmartConfigured(r.data.configured)).catch(() => {}); }, []);
+
+  const handleBarcodeProduct = async (product, target) => {
+    const name = product.product_name || 'Unknown';
+    if (target === 'grocery') {
+      await api.post('/grocery', { name, quantity: product.quantity || '1' });
+      fetchItems();
+    } else {
+      await api.post('/pantry', { name, quantity: product.quantity || '1', location: 'pantry' });
+    }
+    alert(`Added "${name}" to ${target}`);
+  };
 
   const lookupPrices = async () => {
     setLookingUp(true);
@@ -224,6 +237,8 @@ export default function GroceryPage() {
         </div>
         {isParent && (
           <div className="flex items-center gap-2">
+            <BarcodeScanner onProductFound={handleBarcodeProduct} />
+            <PriceTagScanner />
             <ReceiptScanner onComplete={() => fetchItems()} />
             <AiScanButton target="grocery" onComplete={() => fetchItems()} />
             {walmartConfigured ? (
