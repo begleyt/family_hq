@@ -9,6 +9,39 @@ import {
   Trash2, Edit, X, ChevronDown, ChevronUp, GripVertical
 } from 'lucide-react';
 
+// Event color coding (same as CalendarPage)
+const EVENT_COLORS = [
+  'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800',
+  'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800',
+  'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800',
+  'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800',
+  'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/40 dark:text-pink-300 dark:border-pink-800',
+  'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800',
+  'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-800',
+  'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-800',
+  'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700/40 dark:text-slate-300 dark:border-slate-600',
+];
+
+function getEventColor(title) {
+  const t = (title || '').toLowerCase();
+  // Check manual color rules from localStorage
+  try {
+    const rules = JSON.parse(localStorage.getItem('family_calendar_colors') || '[]');
+    for (const r of rules) {
+      if (t.includes(r.name.toLowerCase())) {
+        const colorMap = { blue: 0, green: 1, purple: 2, orange: 3, pink: 4, red: 5, yellow: 6, teal: 7, gray: 8 };
+        return EVENT_COLORS[colorMap[r.color] ?? 0];
+      }
+    }
+  } catch (e) {}
+  // Auto by first word
+  const match = t.match(/^([a-z]+)[\s\-:]/);
+  const name = match ? match[1] : t;
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i);
+  return EVENT_COLORS[Math.abs(hash) % EVENT_COLORS.length];
+}
+
 const CATEGORY_EMOJI = {
   fix_something: '\u{1F527}', buy_something: '\u{1F6D2}', permission: '\u{1F511}',
   chore_negotiation: '\u{1F91D}', allowance: '\u{1F4B0}', ride_request: '\u{1F697}',
@@ -437,11 +470,10 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-2">
               {todayEvents.map(ev => (
-                <div key={ev.id} className="flex items-start gap-3 py-2 px-3 bg-slate-50 rounded-xl">
-                  <div className="text-lg mt-0.5">{'\u{1F4C5}'}</div>
+                <div key={ev.id} className={`flex items-start gap-3 py-2 px-3 rounded-xl border ${getEventColor(ev.title)}`}>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm">{ev.title}</p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs opacity-75">
                       {ev.allDay ? 'All day' : ev.start && new Date(ev.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                       {ev.location && <> &middot; <MapPin size={10} className="inline" /> {ev.location}</>}
                     </p>
