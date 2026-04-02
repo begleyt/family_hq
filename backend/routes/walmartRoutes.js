@@ -481,7 +481,12 @@ If no brand detected, use the item name as generic_name and brand as null.`
           const update = getDb().prepare('UPDATE price_history SET generic_name = ?, brand = ? WHERE item_name = ? AND generic_name IS NULL');
           for (const b of backfills) {
             if (b.item_name && b.generic_name) {
-              update.run(b.generic_name, b.brand || null, b.item_name);
+              const cleanName = b.item_name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+              let r = update.run(b.generic_name, b.brand || null, cleanName);
+              if (r.changes === 0) {
+                getDb().prepare('UPDATE price_history SET generic_name = ?, brand = ? WHERE item_name LIKE ? AND generic_name IS NULL')
+                  .run(b.generic_name, b.brand || null, '%' + cleanName + '%');
+              }
             }
           }
         }
