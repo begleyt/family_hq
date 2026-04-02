@@ -370,6 +370,55 @@ IMPORTANT RULES:
     const receipt = JSON.parse(jsonMatch[0]);
     const storeName = store || receipt.store || 'Unknown Store';
 
+    // AI normalize: match against existing generic names to merge similar items
+    const existingNames = getDb().prepare('SELECT DISTINCT generic_name FROM price_history WHERE generic_name IS NOT NULL').all().map(r => r.generic_name);
+
+    if (existingNames.length > 0 && receipt.items?.length > 0) {
+      try {
+        const normalizeResponse = await client.messages.create({
+          model: aiConfig.model || 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: `Match these new receipt items to existing product names where they're the same product. Return ONLY valid JSON.
+
+EXISTING PRODUCTS IN DATABASE:
+${existingNames.slice(0, 100).join('\n')}
+
+NEW ITEMS TO MATCH:
+${receipt.items.map(i => i.generic_name || i.name).join('\n')}
+
+Return a JSON object mapping each new item to its matching existing name, or keep the original if no match:
+{"new item name": "matched existing name or original if no match"}
+
+Match rules:
+- "Strawberry Pack" and "Strawberries" = same product, use the existing name
+- "2% Milk" and "2% Reduced Fat Milk" = same product
+- "Guacamole" and "Fresh Guacamole" = same product
+- Different sizes ARE different (1 Gallon vs Half Gallon)
+- Different flavors ARE different (Vanilla vs Chocolate)
+- Only match if truly the same product`
+          }]
+        });
+
+        const matchText = normalizeResponse.content[0]?.text || '{}';
+        const matchJson = matchText.match(/\{[\s\S]*\}/);
+        if (matchJson) {
+          const matches = JSON.parse(matchJson[0]);
+          // Apply matches to receipt items
+          receipt.items.forEach(item => {
+            const key = item.generic_name || item.name;
+            if (matches[key] && matches[key] !== key) {
+              item.generic_name = matches[key];
+            }
+          });
+        }
+      } catch (e) {
+        console.error('AI normalize error:', e.message);
+        // Continue without normalization
+      }
+    }
+
     // Record prices in history
     const insertPrice = getDb().prepare('INSERT INTO price_history (item_name, price, store, generic_name, brand) VALUES (?, ?, ?, ?, ?)');
     let recorded = 0;
@@ -392,6 +441,63 @@ IMPORTANT RULES:
   } catch (err) {
     console.error('Receipt scan error:', err.message);
     res.status(500).json({ error: 'Failed to scan receipt: ' + err.message });
+  }
+});
+
+// POST /api/walmart/ai-cleanup - AI merges duplicate product names
+router.post('/ai-cleanup', roleCheck('parent'), async (req, res) => {
+  const aiConfig = getDb().prepare('SELECT * FROM ai_config ORDER BY id DESC LIMIT 1').get();
+  if (!aiConfig || !aiConfig.api_key) return res.status(400).json({ error: 'AI not configured' });
+
+  const names = getDb().prepare('SELECT DISTINCT generic_name FROM price_history WHERE generic_name IS NOT NULL ORDER BY generic_name').all().map(r => r.generic_name);
+  if (names.length < 2) return res.json({ message: 'Not enough items to clean up', merged: 0 });
+
+  try {
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey: aiConfig.api_key });
+
+    const response = await client.messages.create({
+      model: aiConfig.model || 'claude-sonnet-4-20250514',
+      max_tokens: 1500,
+      messages: [{
+        role: 'user',
+        content: `These are product names from a grocery price tracking database. Find duplicates that are the SAME product and should be merged. Return ONLY valid JSON.
+
+PRODUCT NAMES:
+${names.join('\n')}
+
+Return a JSON array of merges. Each merge has "keep" (the best canonical name) and "merge" (array of names that should be renamed to "keep"):
+[{"keep": "Strawberries", "merge": ["Strawberry Pack", "Fresh Strawberries", "Strawberries 1lb"]}]
+
+Rules:
+- Only merge truly identical products (different names for the same thing)
+- Keep the most descriptive/clear name
+- Different sizes ARE different products
+- Different flavors ARE different products
+- If no duplicates found, return []`
+      }]
+    });
+
+    const text = response.content[0]?.text || '[]';
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    const merges = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+
+    let totalMerged = 0;
+    const update = getDb().prepare('UPDATE price_history SET generic_name = ? WHERE generic_name = ?');
+
+    for (const merge of merges) {
+      if (merge.keep && Array.isArray(merge.merge)) {
+        for (const oldName of merge.merge) {
+          const result = update.run(merge.keep, oldName);
+          totalMerged += result.changes;
+        }
+      }
+    }
+
+    res.json({ message: `Merged ${totalMerged} records across ${merges.length} product groups`, merges });
+  } catch (err) {
+    console.error('AI cleanup error:', err.message);
+    res.status(500).json({ error: 'Cleanup failed: ' + err.message });
   }
 });
 
