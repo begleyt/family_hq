@@ -278,7 +278,7 @@ Return: {"item name": "category"}`
       }]
     });
 
-    const text = response.content[0]?.text || '{}';
+    const text = (response.content[0]?.text || '{}').replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
     const match = text.match(/\{[\s\S]*\}/);
     if (match) {
       const cats = JSON.parse(match[0]);

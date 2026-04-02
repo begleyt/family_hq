@@ -7,6 +7,10 @@ const { roleCheck } = require('../middleware/roleCheck');
 const router = express.Router();
 router.use(authMiddleware);
 
+function stripMarkdown(text) {
+  return (text || '').replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+}
+
 function getWalmartConfig() {
   return getDb().prepare('SELECT * FROM walmart_config ORDER BY id DESC LIMIT 1').get();
 }
@@ -360,8 +364,7 @@ IMPORTANT RULES:
       }],
     });
 
-    const text = response.content[0]?.text || '';
-    // Extract JSON from response
+    const text = stripMarkdown(response.content[0]?.text || '');
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return res.status(400).json({ error: 'Could not read receipt', raw: text });
@@ -401,7 +404,7 @@ Match rules:
           }]
         });
 
-        const matchText = normalizeResponse.content[0]?.text || '{}';
+        const matchText = stripMarkdown(normalizeResponse.content[0]?.text || '{}');
         const matchJson = matchText.match(/\{[\s\S]*\}/);
         if (matchJson) {
           const matches = JSON.parse(matchJson[0]);
@@ -471,7 +474,7 @@ If no brand detected, use the item name as generic_name and brand as null.`
           }]
         });
 
-        const bText = backfillResponse.content[0]?.text || '[]';
+        const bText = (backfillResponse.content[0]?.text || '[]').replace(/```json\s*/g, '').replace(/```\s*/g, '');
         const bMatch = bText.match(/\[[\s\S]*\]/);
         if (bMatch) {
           const backfills = JSON.parse(bMatch[0]);
@@ -519,7 +522,7 @@ Rules:
       }]
     });
 
-    const text = response.content[0]?.text || '[]';
+    const text = stripMarkdown(response.content[0]?.text || '[]');
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     const merges = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
 
