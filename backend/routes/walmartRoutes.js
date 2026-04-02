@@ -197,6 +197,114 @@ router.get('/spending-summary', (req, res) => {
   res.json(summary);
 });
 
+// GET /api/walmart/monthly-spending - spending by month and store
+router.get('/monthly-spending', roleCheck('parent'), (req, res) => {
+  const data = getDb().prepare(`
+    SELECT strftime('%Y-%m', recorded_at) as month, store, SUM(price) as total, COUNT(*) as item_count
+    FROM price_history
+    GROUP BY month, store
+    ORDER BY month DESC
+    LIMIT 60
+  `).all();
+  res.json(data);
+});
+
+// GET /api/walmart/store-comparison - compare prices across stores per item
+router.get('/store-comparison', roleCheck('parent'), (req, res) => {
+  const items = getDb().prepare(`
+    SELECT item_name, store,
+      ROUND(AVG(price), 2) as avg_price,
+      MIN(price) as min_price,
+      MAX(price) as max_price,
+      COUNT(*) as times_bought,
+      MAX(recorded_at) as last_bought
+    FROM price_history
+    GROUP BY LOWER(item_name), store
+    ORDER BY item_name, avg_price ASC
+  `).all();
+
+  // Group by item
+  const grouped = {};
+  items.forEach(i => {
+    const key = i.item_name.toLowerCase();
+    if (!grouped[key]) grouped[key] = { name: i.item_name, stores: [] };
+    grouped[key].stores.push({
+      store: i.store,
+      avgPrice: i.avg_price,
+      minPrice: i.min_price,
+      maxPrice: i.max_price,
+      timesBought: i.times_bought,
+      lastBought: i.last_bought,
+    });
+  });
+
+  // Only items with 1+ store
+  const result = Object.values(grouped).filter(g => g.stores.length >= 1)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  res.json(result);
+});
+
+// GET /api/walmart/receipts - full receipt history
+router.get('/receipts', roleCheck('parent'), (req, res) => {
+  const trips = getDb().prepare(`
+    SELECT date(recorded_at) as trip_date, store,
+      SUM(price) as total, COUNT(*) as item_count,
+      GROUP_CONCAT(item_name || '|' || price, ';;') as items_raw
+    FROM price_history
+    GROUP BY date(recorded_at), store
+    ORDER BY trip_date DESC
+    LIMIT 50
+  `).all();
+
+  const receipts = trips.map(t => ({
+    date: t.trip_date,
+    store: t.store,
+    total: Math.round(t.total * 100) / 100,
+    itemCount: t.item_count,
+    items: t.items_raw ? t.items_raw.split(';;').map(i => {
+      const [name, price] = i.split('|');
+      return { name, price: parseFloat(price) };
+    }) : [],
+  }));
+
+  res.json(receipts);
+});
+
+// GET /api/walmart/spending-stats - overall stats
+router.get('/spending-stats', roleCheck('parent'), (req, res) => {
+  const thisMonth = getDb().prepare(`
+    SELECT COALESCE(SUM(price), 0) as total, COUNT(DISTINCT date(recorded_at)) as trips
+    FROM price_history WHERE strftime('%Y-%m', recorded_at) = strftime('%Y-%m', 'now')
+  `).get();
+
+  const lastMonth = getDb().prepare(`
+    SELECT COALESCE(SUM(price), 0) as total
+    FROM price_history WHERE strftime('%Y-%m', recorded_at) = strftime('%Y-%m', 'now', '-1 month')
+  `).get();
+
+  const avgTrip = getDb().prepare(`
+    SELECT AVG(trip_total) as avg FROM (
+      SELECT SUM(price) as trip_total FROM price_history
+      GROUP BY date(recorded_at), store
+    )
+  `).get();
+
+  const topStore = getDb().prepare(`
+    SELECT store, SUM(price) as total FROM price_history
+    WHERE strftime('%Y-%m', recorded_at) = strftime('%Y-%m', 'now')
+    GROUP BY store ORDER BY total DESC LIMIT 1
+  `).get();
+
+  res.json({
+    thisMonth: Math.round((thisMonth?.total || 0) * 100) / 100,
+    lastMonth: Math.round((lastMonth?.total || 0) * 100) / 100,
+    tripsThisMonth: thisMonth?.trips || 0,
+    avgTripCost: Math.round((avgTrip?.avg || 0) * 100) / 100,
+    topStore: topStore?.store || null,
+    topStoreTotal: Math.round((topStore?.total || 0) * 100) / 100,
+  });
+});
+
 // POST /api/walmart/scan-receipt - AI scans receipt photo
 router.post('/scan-receipt', roleCheck('parent'), async (req, res) => {
   const { imageData, store } = req.body;

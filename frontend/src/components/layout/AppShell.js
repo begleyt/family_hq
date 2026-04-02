@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../api';
 import {
-  LayoutDashboard, Ticket, ShoppingCart, UtensilsCrossed, CalendarDays, BarChart3, BookOpen, Package,
+  LayoutDashboard, Ticket, ShoppingCart, UtensilsCrossed, CalendarDays, BarChart3, BookOpen, Package, DollarSign,
   Users, LogOut, Menu, X, Bell, CheckCheck, Moon, Sun, Camera
 } from 'lucide-react';
 import Avatar from '../common/Avatar';
@@ -23,6 +23,7 @@ const navItems = [
 
 const adminItems = [
   { to: '/pantry', icon: Package, label: 'Pantry' },
+  { to: '/spending', icon: DollarSign, label: 'Spending' },
   { to: '/admin/users', icon: Users, label: 'Family Members' },
 ];
 
