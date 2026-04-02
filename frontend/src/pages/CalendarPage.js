@@ -147,7 +147,7 @@ export default function CalendarPage() {
 
   const fetchWeekMeals = async () => {
     const start = getWeekStart();
-    const weekStr = start.toISOString().split('T')[0];
+    const weekStr = `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`;
     try {
       const res = await api.get(`/meals?week=${weekStr}`);
       setWeekMeals(res.data.meals || []);
@@ -186,7 +186,7 @@ export default function CalendarPage() {
   };
 
   const getEventsForDate = (date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
     return events.filter(e => {
       const eDate = (e.start || '').split('T')[0];
       return eDate === dateStr;
@@ -198,7 +198,7 @@ export default function CalendarPage() {
     return date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
   };
 
-  const formatDateStr = (d) => d.toISOString().split('T')[0];
+  const formatDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
   // Week view helpers
   const getWeekStart = () => {
@@ -463,7 +463,7 @@ export default function CalendarPage() {
             return (
               <div className="grid grid-cols-7">
                 {days.map((day, i) => {
-                  const dateStr = day.toISOString().split('T')[0];
+                  const dateStr = `${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`;
                   const dayMeals = weekMeals.filter(m => m.meal_date === dateStr);
                   const today = isToday(day);
                   return (
