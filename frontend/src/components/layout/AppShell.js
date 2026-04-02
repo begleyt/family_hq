@@ -262,8 +262,8 @@ export default function AppShell({ children }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 pb-20 md:pb-4 overflow-auto">
-        <div className="max-w-6xl mx-auto p-4 md:p-6">
+      <main className="flex-1 pb-20 md:pb-4 overflow-x-hidden overflow-y-auto">
+        <div className="max-w-6xl mx-auto p-4 md:p-6 overflow-hidden">
           {children}
         </div>
       </main>

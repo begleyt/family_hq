@@ -246,7 +246,7 @@ export default function DashboardPage() {
   const isDashboard = user.role === 'dashboard';
 
   return (
-    <div>
+    <div className="overflow-hidden">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Hey, {user.displayName}! {user.avatarEmoji}</h1>
@@ -317,7 +317,7 @@ export default function DashboardPage() {
                 <p className="text-slate-400 text-sm">The board is empty. Post the first note!</p>
               </div>
             ) : (<>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {(showAllMessages ? messages : messages.slice(0, 3)).map((msg, i) => (
                   <div key={msg.id}
                     draggable={isParent}
@@ -423,9 +423,9 @@ export default function DashboardPage() {
         );
       })()}
 
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 overflow-hidden">
         {/* Today's Meals */}
-        <div className="card">
+        <div className="card min-w-0">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-slate-700 flex items-center gap-2">
               <UtensilsCrossed size={18} className="text-blue-500" /> Today's Menu
@@ -450,7 +450,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Today's Calendar Events */}
-        <div className="card">
+        <div className="card min-w-0">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-slate-700 flex items-center gap-2">
               <CalendarDays size={18} className="text-purple-500" /> Today's Events
@@ -478,7 +478,7 @@ export default function DashboardPage() {
 
         {/* Active Polls / Food Orders */}
         {activePolls.length > 0 && (
-          <div className="card">
+          <div className="card min-w-0">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold text-slate-700 flex items-center gap-2">
                 <BarChart3 size={18} className="text-orange-500" /> Active Polls
@@ -504,7 +504,7 @@ export default function DashboardPage() {
 
         {/* Pending Requests or Activity */}
         {isParent && pendingRequests.length > 0 && (
-          <div className="card">
+          <div className="card min-w-0">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold text-slate-700 flex items-center gap-2"><AlertCircle size={18} className="text-amber-500" /> Pending Requests</h2>
               <Link to="/requests" className="text-sm text-family-500 hover:text-family-600 flex items-center gap-1">View all <ChevronRight size={14} /></Link>
@@ -524,7 +524,7 @@ export default function DashboardPage() {
           </div>
         )}
         {isParent && (
-          <div className="card">
+          <div className="card min-w-0">
             <h2 className="font-semibold text-slate-700 flex items-center gap-2 mb-3"><Clock size={18} className="text-slate-400" /> Recent Activity</h2>
             {recentActivity.length === 0 ? (
               <p className="text-slate-400 text-sm py-4 text-center">No activity yet</p>
