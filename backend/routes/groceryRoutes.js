@@ -216,6 +216,8 @@ function categorizeItem(name) {
   if (/\b(chicken broth|chicken stock|beef broth|beef stock|vegetable broth|vegetable stock|bone broth)/i.test(n)) return 'pantry';
   if (/\b(cream of chicken|cream of mushroom|tomato soup|chicken noodle soup)/i.test(n)) return 'pantry';
   if (/\b(tortilla chip|tortilla chips|corn chip)/i.test(n)) return 'snacks';
+  if (/\b(pizza|cauliflower crust|frozen dinner|frozen meal|frozen entre|hot pocket|lean cuisine|tv dinner|pot pie|frozen burrito)/i.test(n)) return 'frozen';
+  if (/\b(nugget|chicken nugget|fish stick|corn dog|frozen chicken|frozen beef|frozen shrimp)/i.test(n)) return 'frozen';
 
   // Produce (allow plurals/suffixes: tomato matches tomatoes, diced, etc.)
   if (/\b(lettuc|tomato|onion|garlic|pepper[s,\s]|potato|carrot|celer|broccol|spinach|kale|cucumber|avocado|mushroom|zucchini|squash|corn\b|bean sprout|cilantro|parsley|basil|mint\b|ginger|lemon|lime\b|orange|apple|banana|grape|strawberr|blueberr|raspberr|mango|pineapple|peach|pear\b|melon|watermelon|berr|fruit|vegetab|salad|herb|scallion|shallot|jalape|cabbage|cauliflower|asparagus|artichoke|beet|radish|turnip|sweet potato|green bean|snap pea|bell pepper|chil[li]|fresh |olive[s,\s]|arugula|romaine|endive|fennel|leek|chive|dill\b|rosemary|thyme|sage\b)/i.test(n) && !/oil|vinegar|dried|juice/i.test(n)) return 'produce';

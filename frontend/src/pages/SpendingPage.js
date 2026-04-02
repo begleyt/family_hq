@@ -260,9 +260,20 @@ export default function SpendingPage() {
                                     <span className={`font-bold ${s.store === cheapest.store && item.stores.length > 1 ? 'text-emerald-600' : ''}`}>
                                       ${s.avgPrice.toFixed(2)}
                                     </span>
-                                    <span className="text-[10px] text-slate-400">({s.timesBought}x)</span>
+                                    {s.priceChange !== 0 && s.priceChange != null && (
+                                      <span className={`text-[10px] font-medium flex items-center gap-0.5 ${s.priceChange > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                        {s.priceChange > 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                                        {s.priceChange > 0 ? '+' : ''}{s.priceChange.toFixed(2)}
+                                      </span>
+                                    )}
                                   </div>
-                                  {s.brand && <p className="text-[10px] text-slate-400">{s.brand}</p>}
+                                  <div className="text-[10px] text-slate-400">
+                                    {s.brand && <>{s.brand} &middot; </>}
+                                    {s.timesBought}x &middot; last {s.lastBought ? new Date(s.lastBought).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}
+                                    {s.lastPrice && s.firstPrice && s.lastPrice !== s.firstPrice && (
+                                      <> &middot; was ${s.firstPrice.toFixed(2)} {'\u2192'} ${s.lastPrice.toFixed(2)}</>
+                                    )}
+                                  </div>
                                 </div>
                               ))}
                             </div>

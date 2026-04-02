@@ -233,11 +233,33 @@ router.get('/store-comparison', roleCheck('parent'), (req, res) => {
       MIN(price) as min_price,
       MAX(price) as max_price,
       COUNT(*) as times_bought,
-      MAX(recorded_at) as last_bought
+      MAX(recorded_at) as last_bought,
+      MIN(recorded_at) as first_bought
     FROM price_history
     GROUP BY LOWER(COALESCE(generic_name, item_name)), store
     ORDER BY generic_name, avg_price ASC
   `).all();
+
+  // Get first and last price for each item+store to determine trend
+  const trendQuery = getDb().prepare(`
+    SELECT price, recorded_at FROM price_history
+    WHERE LOWER(COALESCE(generic_name, item_name)) = ? AND store = ?
+    ORDER BY recorded_at ASC
+  `);
+
+  items.forEach(i => {
+    const key = (i.generic_name || i.item_name).toLowerCase();
+    const history = trendQuery.all(key, i.store);
+    if (history.length >= 2) {
+      i.firstPrice = history[0].price;
+      i.lastPrice = history[history.length - 1].price;
+      i.priceChange = Math.round((i.lastPrice - i.firstPrice) * 100) / 100;
+    } else {
+      i.firstPrice = null;
+      i.lastPrice = history.length > 0 ? history[0].price : null;
+      i.priceChange = 0;
+    }
+  });
 
   // Group by normalized generic name for fuzzy matching
   const grouped = {};
@@ -254,6 +276,10 @@ router.get('/store-comparison', roleCheck('parent'), (req, res) => {
       maxPrice: i.max_price,
       timesBought: i.times_bought,
       lastBought: i.last_bought,
+      firstBought: i.first_bought,
+      lastPrice: i.lastPrice,
+      firstPrice: i.firstPrice,
+      priceChange: i.priceChange,
     });
   });
 
