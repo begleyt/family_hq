@@ -38,6 +38,7 @@ export default function GroceryPage() {
   const [quantity, setQuantity] = useState('');
   const [category, setCategory] = useState('other');
   const [showAdd, setShowAdd] = useState(false);
+  const [collapsedCats, setCollapsedCats] = useState({});
   const [editItem, setEditItem] = useState(null);
   const [lookingUp, setLookingUp] = useState(false);
   const [estimatedTotal, setEstimatedTotal] = useState(null);
@@ -341,12 +342,14 @@ export default function GroceryPage() {
             if (!catItems) return null;
             return (
               <div key={cat.value}>
-                <div className="flex items-center gap-2 mb-2 px-1">
+                <button onClick={() => setCollapsedCats(prev => ({ ...prev, [cat.value]: !prev[cat.value] }))}
+                  className="flex items-center gap-2 mb-2 px-1 w-full text-left">
                   <span>{cat.emoji}</span>
                   <h3 className="text-sm font-semibold text-slate-600">{cat.label}</h3>
                   <span className="text-xs text-slate-400">({catItems.length})</span>
-                </div>
-                <div className="space-y-1">
+                  <ChevronDown size={14} className={`text-slate-400 ml-auto transition-transform ${collapsedCats[cat.value] ? '-rotate-90' : ''}`} />
+                </button>
+                {!collapsedCats[cat.value] && <div className="space-y-1">
                   {catItems.map(item => (
                     <div key={item.id} className="card flex items-center gap-3 py-3">
                       {isParent ? (
@@ -399,7 +402,7 @@ export default function GroceryPage() {
                       )}
                     </div>
                   ))}
-                </div>
+                </div>}
               </div>
             );
           })}

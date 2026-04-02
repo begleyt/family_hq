@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import {
   Plus, X, Search, Edit, Trash2, AlertTriangle, ShoppingCart,
-  Refrigerator, Snowflake, Package, Coffee, Home, Camera
+  Refrigerator, Snowflake, Package, Coffee, Home, Camera, ChevronDown
 } from 'lucide-react';
 import AiScanButton from '../components/common/AiScanButton';
 import BarcodeScanner from '../components/common/BarcodeScanner';
@@ -39,6 +39,7 @@ export default function PantryPage() {
   const [search, setSearch] = useState('');
   const [filterLoc, setFilterLoc] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [collapsedLocs, setCollapsedLocs] = useState({});
   const [editId, setEditId] = useState(null);
 
   const [name, setName] = useState('');
@@ -148,12 +149,14 @@ export default function PantryPage() {
             if (!locItems) return null;
             return (
               <div key={loc.value}>
-                <div className="flex items-center gap-2 mb-2 px-1">
+                <button onClick={() => setCollapsedLocs(prev => ({ ...prev, [loc.value]: !prev[loc.value] }))}
+                  className="flex items-center gap-2 mb-2 px-1 w-full text-left">
                   <span>{loc.emoji}</span>
                   <h3 className="text-sm font-semibold text-slate-600">{loc.label}</h3>
                   <span className="text-xs text-slate-400">({locItems.length})</span>
-                </div>
-                <div className="space-y-1">
+                  <ChevronDown size={14} className={`text-slate-400 ml-auto transition-transform ${collapsedLocs[loc.value] ? '-rotate-90' : ''}`} />
+                </button>
+                {!collapsedLocs[loc.value] && <div className="space-y-1">
                   {locItems.map(item => {
                     const daysLeft = daysUntil(item.expiration_date);
                     const expiring = daysLeft !== null && daysLeft <= 3;
@@ -200,7 +203,7 @@ export default function PantryPage() {
                       </div>
                     );
                   })}
-                </div>
+                </div>}
               </div>
             );
           })}
