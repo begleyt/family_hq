@@ -236,38 +236,38 @@ export default function GroceryPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Grocery List</h1>
           <p className="text-sm text-slate-500">{needToBuy.length} items to get{onHand.length > 0 ? `, ${onHand.length} on hand` : ''}</p>
         </div>
-        {isParent && (
-          <div className="flex items-center gap-2">
-            <BarcodeScanner onProductFound={handleBarcodeProduct} />
-            <PriceTagScanner />
-            <ReceiptScanner onComplete={() => fetchItems()} />
-            <AiScanButton target="grocery" onComplete={() => fetchItems()} />
-            {walmartConfigured ? (
-              <button onClick={lookupPrices} disabled={lookingUp} className="btn-secondary text-sm flex items-center gap-1">
-                <DollarSign size={14} /> {lookingUp ? 'Looking up...' : 'Get Prices'}
-              </button>
-            ) : (
-              <button onClick={() => setShowWalmartConfig(true)} className="btn-secondary text-sm flex items-center gap-1">
-                <Settings size={14} /> Walmart
-              </button>
-            )}
-            <button onClick={loadArchives} className="btn-secondary text-sm flex items-center gap-1" title="Past Lists">
-              <Clock size={14} /> Past Lists
-            </button>
-            {checked.length > 0 && (
-              <button onClick={handleArchive} disabled={archiving}
-                className="btn-primary text-sm flex items-center gap-1" title="Archive checked items & clear">
-                <Archive size={14} /> Archive {checked.length}
-              </button>
-            )}
-          </div>
-        )}
       </div>
+      {isParent && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <BarcodeScanner onProductFound={handleBarcodeProduct} />
+          <PriceTagScanner />
+          <ReceiptScanner onComplete={() => fetchItems()} />
+          <AiScanButton target="grocery" onComplete={() => fetchItems()} />
+          {walmartConfigured ? (
+            <button onClick={lookupPrices} disabled={lookingUp} className="btn-secondary text-sm flex items-center gap-1">
+              <DollarSign size={14} /> {lookingUp ? 'Looking up...' : 'Prices'}
+            </button>
+          ) : (
+            <button onClick={() => setShowWalmartConfig(true)} className="btn-secondary text-sm flex items-center gap-1">
+              <Settings size={14} /> Walmart
+            </button>
+          )}
+          <button onClick={loadArchives} className="btn-secondary text-sm flex items-center gap-1" title="Past Lists">
+            <Clock size={14} /> Past Lists
+          </button>
+          {checked.length > 0 && (
+            <button onClick={handleArchive} disabled={archiving}
+              className="btn-primary text-sm flex items-center gap-1" title="Archive checked items & clear">
+              <Archive size={14} /> Archive {checked.length}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Estimated total */}
       {estimatedTotal > 0 && (

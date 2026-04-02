@@ -195,7 +195,7 @@ export default function RequestsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+      <div className="flex flex-wrap gap-2 mb-4">
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="input-field text-sm py-2 w-auto">
           <option value="">All Status</option>
           {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

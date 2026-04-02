@@ -103,7 +103,7 @@ export default function PantryPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Pantry</h1>
           <p className="text-sm text-slate-500">
@@ -112,16 +112,16 @@ export default function PantryPage() {
             {expiringCount > 0 && <span className="text-red-500"> &middot; {expiringCount} expiring soon</span>}
           </p>
         </div>
-        {isParent && (
-          <div className="flex items-center gap-2">
-            <BarcodeScanner continuous autoTarget="pantry" onProductFound={handleBarcodeProduct} />
-            <AiScanButton target="pantry" onComplete={() => fetchItems()} />
-            <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary flex items-center gap-2 text-sm">
-              <Plus size={18} /> Add Item
-            </button>
-          </div>
-        )}
       </div>
+      {isParent && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <BarcodeScanner continuous autoTarget="pantry" onProductFound={handleBarcodeProduct} />
+          <AiScanButton target="pantry" onComplete={() => fetchItems()} />
+          <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary flex items-center gap-2 text-sm">
+            <Plus size={18} /> Add Item
+          </button>
+        </div>
+      )}
 
       {/* Search + Filter */}
       <div className="flex gap-2 mb-4">

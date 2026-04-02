@@ -288,31 +288,29 @@ export default function CalendarPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold text-slate-800">Calendar</h1>
-        <div className="flex items-center gap-2">
-          {isParent && (
-            <button onClick={() => setShowColorConfig(true)} className="btn-secondary text-sm flex items-center gap-1">
-              {'\u{1F3A8}'} Colors
-            </button>
-          )}
-          {isParent && (
-            <button onClick={() => setShowConfig(true)} className="btn-secondary text-sm flex items-center gap-1">
-              <Settings size={14} /> Setup
-            </button>
-          )}
-          {isParent && status.configured && !status.connected && (
+      </div>
+      {isParent && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <button onClick={() => setShowColorConfig(true)} className="btn-secondary text-sm flex items-center gap-1">
+            {'\u{1F3A8}'} Colors
+          </button>
+          <button onClick={() => setShowConfig(true)} className="btn-secondary text-sm flex items-center gap-1">
+            <Settings size={14} /> Setup
+          </button>
+          {status.configured && !status.connected && (
             <button onClick={connectGoogle} className="btn-primary text-sm flex items-center gap-1">
               <Link2 size={14} /> Connect Google
             </button>
           )}
-          {isParent && status.connected && (
+          {status.connected && (
             <button onClick={disconnect} className="btn-secondary text-sm flex items-center gap-1 text-red-500">
               <Unlink size={14} /> Disconnect
             </button>
           )}
         </div>
-      </div>
+      )}
 
       {!status.configured && isParent && (
         <div className="card mb-4 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">

@@ -82,22 +82,22 @@ export default function SpendingPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <div className="mb-2">
         <h1 className="text-2xl font-bold text-slate-800">Grocery Spending</h1>
-        <div className="flex items-center gap-2">
-          <button onClick={async () => {
-            if (!window.confirm('AI will merge duplicate product names. Continue?')) return;
-            try {
-              const res = await api.post('/walmart/ai-cleanup');
-              alert(res.data.message);
-              window.location.reload();
-            } catch (e) { alert(e.response?.data?.error || 'Cleanup failed'); }
-          }} className="btn-secondary text-sm flex items-center gap-1">
-            {'\u{2728}'} AI Cleanup
-          </button>
-          <PriceTagScanner />
-          <ReceiptScanner onComplete={() => window.location.reload()} />
-        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <button onClick={async () => {
+          if (!window.confirm('AI will merge duplicate product names. Continue?')) return;
+          try {
+            const res = await api.post('/walmart/ai-cleanup');
+            alert(res.data.message);
+            window.location.reload();
+          } catch (e) { alert(e.response?.data?.error || 'Cleanup failed'); }
+        }} className="btn-secondary text-sm flex items-center gap-1">
+          {'\u{2728}'} AI Cleanup
+        </button>
+        <PriceTagScanner />
+        <ReceiptScanner onComplete={() => window.location.reload()} />
       </div>
 
       {/* Stats Cards */}
