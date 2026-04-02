@@ -377,7 +377,9 @@ router.post('/scan-receipt', roleCheck('parent'), async (req, res) => {
           {
             type: 'text',
             text: `Read this store receipt and extract every item with its price. Return ONLY valid JSON in this exact format, no other text:
-{"store": "store name from receipt", "date": "YYYY-MM-DD", "items": [{"name": "full item name", "generic_name": "generic product name", "brand": "brand name or store brand", "price": 1.99, "quantity": 1}], "total": 25.99, "tax": 1.50}
+{"store": "store name from receipt", "date": "YYYY-MM-DD", "items": [{"name": "full item name", "generic_name": "generic product name", "brand": "brand name or store brand", "price": 1.99, "quantity": 1, "unit_price": "$1.99/lb or null", "weight": "2.14 LB or null"}], "total": 25.99, "tax": 1.50}
+- For items sold by weight (produce, meat, deli): "price" is the total paid, "unit_price" is the per-lb or per-oz rate, "weight" is the amount
+- For regular items: "unit_price" and "weight" are null, "quantity" is the count
 
 IMPORTANT RULES:
 - "name": The full readable item name including brand (e.g., "Great Value Whole Milk 1 Gallon")
