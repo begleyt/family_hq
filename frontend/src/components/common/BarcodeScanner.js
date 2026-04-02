@@ -170,14 +170,18 @@ export default function BarcodeScanner({ onProductFound, continuous = false, aut
               </div>
             )}
 
-            {/* Scan options (not loading, no product shown) */}
-            {!loading && !product && (
+            {/* Scan options */}
+            {(!loading || liveActive) && !product && (
               <div className="space-y-3">
-                <input ref={photoRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} className="hidden" />
-                <button onClick={() => photoRef.current?.click()}
-                  className="w-full btn-primary flex items-center justify-center gap-2">
-                  <Camera size={18} /> Take Photo of Barcode
-                </button>
+                {!liveActive && (
+                  <>
+                    <input ref={photoRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} className="hidden" />
+                    <button onClick={() => photoRef.current?.click()}
+                      className="w-full btn-primary flex items-center justify-center gap-2">
+                      <Camera size={18} /> Take Photo of Barcode
+                    </button>
+                  </>
+                )}
 
                 {liveSupported && (
                   <>
@@ -192,21 +196,24 @@ export default function BarcodeScanner({ onProductFound, continuous = false, aut
                         <X size={18} /> Stop Scanning
                       </button>
                     )}
-                    <div id="barcode-live-reader" className="rounded-xl overflow-hidden" />
+                    <div id="barcode-live-reader" className="rounded-xl overflow-hidden" style={{ display: liveActive ? 'block' : 'none' }} />
                   </>
                 )}
 
-                <div className="flex items-center gap-2 my-1">
-                  <div className="flex-1 border-t border-slate-200 dark:border-slate-600" />
-                  <span className="text-xs text-slate-400">or type it</span>
-                  <div className="flex-1 border-t border-slate-200 dark:border-slate-600" />
-                </div>
-
-                <form onSubmit={handleManualLookup} className="flex gap-2">
-                  <input value={manualUpc} onChange={e => setManualUpc(e.target.value)}
-                    className="input-field text-sm flex-1" placeholder="Enter UPC number..." />
-                  <button type="submit" className="btn-primary px-3 text-sm">Look Up</button>
-                </form>
+                {!liveActive && (
+                  <>
+                    <div className="flex items-center gap-2 my-1">
+                      <div className="flex-1 border-t border-slate-200 dark:border-slate-600" />
+                      <span className="text-xs text-slate-400">or type it</span>
+                      <div className="flex-1 border-t border-slate-200 dark:border-slate-600" />
+                    </div>
+                    <form onSubmit={handleManualLookup} className="flex gap-2">
+                      <input value={manualUpc} onChange={e => setManualUpc(e.target.value)}
+                        className="input-field text-sm flex-1" placeholder="Enter UPC number..." />
+                      <button type="submit" className="btn-primary px-3 text-sm">Look Up</button>
+                    </form>
+                  </>
+                )}
               </div>
             )}
 
