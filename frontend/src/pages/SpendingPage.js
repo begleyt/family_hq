@@ -16,6 +16,7 @@ export default function SpendingPage() {
   const [receipts, setReceipts] = useState([]);
   const [expandedReceipt, setExpandedReceipt] = useState(null);
   const [searchComp, setSearchComp] = useState('');
+  const [filterCat, setFilterCat] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,7 +53,6 @@ export default function SpendingPage() {
   const allStores = [...new Set(monthly.map(m => m.store))];
   const storeColors = ['bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500', 'bg-teal-500'];
 
-  const [filterCat, setFilterCat] = useState('');
   const CATS = [
     { value: 'produce', label: 'Produce', emoji: '\u{1F34E}' },
     { value: 'dairy', label: 'Dairy', emoji: '\u{1F95B}' },
