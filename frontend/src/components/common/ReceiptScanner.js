@@ -72,8 +72,8 @@ export default function ReceiptScanner({ onComplete }) {
   return (
     <>
       <input ref={inputRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} className="hidden" />
-      <button onClick={() => inputRef.current?.click()} className="btn-secondary text-sm flex items-center gap-1">
-        <Receipt size={14} /> Scan Receipt
+      <button onClick={() => inputRef.current?.click()} className="btn-secondary text-sm flex items-center gap-1" title="Scan Receipt">
+        <Receipt size={14} /> <span className="hidden sm:inline">Receipt</span>
       </button>
 
       {/* Receipt Scanner Modal */}

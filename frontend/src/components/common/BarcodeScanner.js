@@ -144,8 +144,8 @@ export default function BarcodeScanner({ onProductFound, continuous = false, aut
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="btn-secondary text-sm flex items-center gap-1">
-        <Scan size={14} /> Scan Barcode
+      <button onClick={() => setOpen(true)} className="btn-secondary text-sm flex items-center gap-1" title="Scan Barcode">
+        <Scan size={14} /> <span className="hidden sm:inline">Barcode</span>
       </button>
 
       {open && (

@@ -61,7 +61,7 @@ export default function AiScanButton({ target, onComplete }) {
       <button onClick={() => inputRef.current?.click()} disabled={scanning}
         className="btn-secondary text-sm flex items-center gap-1">
         {scanning ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
-        {scanning ? 'Scanning...' : 'Scan Items'}
+        <span className="hidden sm:inline">{scanning ? 'Scanning...' : 'Scan'}</span>
       </button>
 
       {preview && scanning && (

@@ -249,21 +249,21 @@ export default function GroceryPage() {
           <ReceiptScanner onComplete={() => fetchItems()} />
           <AiScanButton target="grocery" onComplete={() => fetchItems()} />
           {walmartConfigured ? (
-            <button onClick={lookupPrices} disabled={lookingUp} className="btn-secondary text-sm flex items-center gap-1">
-              <DollarSign size={14} /> {lookingUp ? 'Looking up...' : 'Prices'}
+            <button onClick={lookupPrices} disabled={lookingUp} className="btn-secondary text-sm flex items-center gap-1" title="Get Prices">
+              <DollarSign size={14} /> <span className="hidden sm:inline">{lookingUp ? 'Looking up...' : 'Prices'}</span>
             </button>
           ) : (
-            <button onClick={() => setShowWalmartConfig(true)} className="btn-secondary text-sm flex items-center gap-1">
-              <Settings size={14} /> Walmart
+            <button onClick={() => setShowWalmartConfig(true)} className="btn-secondary text-sm flex items-center gap-1" title="Walmart Setup">
+              <Settings size={14} /> <span className="hidden sm:inline">Walmart</span>
             </button>
           )}
           <button onClick={loadArchives} className="btn-secondary text-sm flex items-center gap-1" title="Past Lists">
-            <Clock size={14} /> Past Lists
+            <Clock size={14} /> <span className="hidden sm:inline">Past Lists</span>
           </button>
           {checked.length > 0 && (
             <button onClick={handleArchive} disabled={archiving}
               className="btn-primary text-sm flex items-center gap-1" title="Archive checked items & clear">
-              <Archive size={14} /> Archive {checked.length}
+              <Archive size={14} /> <span className="hidden sm:inline">Archive</span> {checked.length}
             </button>
           )}
         </div>

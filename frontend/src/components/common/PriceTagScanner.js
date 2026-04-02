@@ -52,8 +52,8 @@ export default function PriceTagScanner({ onPriceFound }) {
   return (
     <>
       <input ref={inputRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} className="hidden" />
-      <button onClick={() => inputRef.current?.click()} className="btn-secondary text-sm flex items-center gap-1">
-        <Tag size={14} /> Scan Price Tag
+      <button onClick={() => inputRef.current?.click()} className="btn-secondary text-sm flex items-center gap-1" title="Scan Price Tag">
+        <Tag size={14} /> <span className="hidden sm:inline">Price Tag</span>
       </button>
 
       {(preview || result) && (
