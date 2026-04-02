@@ -298,6 +298,55 @@ Return: {"item name": "category"}`
 
 router.aiCategorizeItems = aiCategorizeItems;
 
+// POST /api/grocery/check-pantry - check which ingredients are in the pantry (AI-powered)
+router.post('/check-pantry', roleCheck('parent'), async (req, res) => {
+  const { items } = req.body;
+  if (!Array.isArray(items)) return res.json([]);
+
+  const pantryItems = getDb().prepare('SELECT name, quantity, location FROM pantry_items').all();
+  if (pantryItems.length === 0) return res.json(items.map(i => ({ ...i, inPantry: false })));
+
+  try {
+    const aiConfig = getDb().prepare('SELECT * FROM ai_config ORDER BY id DESC LIMIT 1').get();
+    if (!aiConfig?.api_key) return res.json(items.map(i => ({ ...i, inPantry: false })));
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey: aiConfig.api_key });
+
+    const response = await client.messages.create({
+      model: aiConfig.model || 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: `Match recipe ingredients against pantry items. Ignore brand names when matching.
+Return ONLY valid JSON: {"ingredient_name": true/false} (true = in pantry)
+
+PANTRY:
+${pantryItems.map(p => `${p.name} (${p.quantity}, ${p.location})`).join('\n')}
+
+INGREDIENTS TO CHECK:
+${items.map(i => i.name).join('\n')}
+
+Rules: "Great Value Olive Oil" in pantry matches "olive oil" ingredient. "Eggs" matches "eggs". Be generous with matching - if the pantry has the base ingredient, it counts.`
+      }]
+    });
+
+    const text = (response.content[0]?.text || '{}').replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+    const match = text.match(/\{[\s\S]*\}/);
+    const matches = match ? JSON.parse(match[0]) : {};
+
+    const result = items.map(i => ({
+      ...i,
+      inPantry: !!matches[i.name],
+    }));
+
+    res.json(result);
+  } catch (e) {
+    console.error('Pantry check error:', e.message);
+    res.json(items.map(i => ({ ...i, inPantry: false })));
+  }
+});
+
 // POST /api/grocery/from-recipe - add recipe ingredients to grocery list (parent only)
 router.post('/from-recipe', roleCheck('parent'), async (req, res) => {
   const { items, recipeName } = req.body;

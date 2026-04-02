@@ -103,7 +103,14 @@ export default function MealPlannerPage() {
     if (selectedRecipeObj && selectedRecipeObj.ingredients) {
       const parsed = parseIngredients(selectedRecipeObj);
       if (parsed.length > 0) {
-        setGroceryIngredients(parsed);
+        // Check pantry for items we already have
+        try {
+          const pantryCheck = await api.post('/grocery/check-pantry', { items: parsed });
+          const checked = pantryCheck.data.map(i => ({ ...i, include: !i.inPantry }));
+          setGroceryIngredients(checked);
+        } catch (e) {
+          setGroceryIngredients(parsed);
+        }
         setShowGroceryPrompt(selectedRecipeObj.title);
       }
     }
@@ -493,6 +500,7 @@ export default function MealPlannerPage() {
                     className="w-16 input-field text-xs py-1 px-2 text-center" />
                   <input value={item.name} onChange={e => { const u = [...groceryIngredients]; u[i] = { ...u[i], name: e.target.value }; setGroceryIngredients(u); }}
                     className="flex-1 input-field text-xs py-1 px-2" />
+                  {item.inPantry && <span className="text-[10px] text-emerald-500 whitespace-nowrap">{'\u{1F3E0}'} have it</span>}
                 </div>
               ))}
             </div>
