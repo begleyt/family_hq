@@ -211,7 +211,7 @@ export default function AppShell({ children }) {
               {navItems.map((item) => <NavItem key={item.to} {...item} />)}
               {user?.role === 'parent' && (
                 <>
-                  <div className="mt-4 mb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Admin</div>
+                  <div className="mt-4 mb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Parent</div>
                   {adminItems.map((item) => <NavItem key={item.to} {...item} />)}
                 </>
               )}
@@ -227,7 +227,7 @@ export default function AppShell({ children }) {
       )}
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-slate-800 border-r border-slate-100 dark:border-slate-700 p-4 sticky top-0 h-screen">
+      <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-slate-800 border-r border-slate-100 dark:border-slate-700 p-4 sticky top-0 h-screen overflow-y-auto">
         <div className="flex items-center justify-between px-4 mb-6 mt-2">
           <h1 className="text-xl font-bold text-family-600">Family HQ</h1>
           <NotifBell />
@@ -248,7 +248,7 @@ export default function AppShell({ children }) {
           {navItems.map((item) => <NavItem key={item.to} {...item} />)}
           {user?.role === 'parent' && (
             <>
-              <div className="mt-6 mb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Admin</div>
+              <div className="mt-6 mb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Parent</div>
               {adminItems.map((item) => <NavItem key={item.to} {...item} />)}
             </>
           )}
