@@ -8,6 +8,7 @@ import {
   ChevronDown, ChevronRight, Clock, ShoppingCart, Edit, Camera
 } from 'lucide-react';
 import AiScanButton from '../components/common/AiScanButton';
+import ReceiptScanner from '../components/common/ReceiptScanner';
 import { DollarSign, ExternalLink, TrendingDown, Settings } from 'lucide-react';
 
 const GROCERY_CATEGORIES = [
@@ -223,6 +224,7 @@ export default function GroceryPage() {
         </div>
         {isParent && (
           <div className="flex items-center gap-2">
+            <ReceiptScanner onComplete={() => fetchItems()} />
             <AiScanButton target="grocery" onComplete={() => fetchItems()} />
             {walmartConfigured ? (
               <button onClick={lookupPrices} disabled={lookingUp} className="btn-secondary text-sm flex items-center gap-1">
@@ -344,13 +346,20 @@ export default function GroceryPage() {
                           {item.for_recipe && <> &middot; <span className="text-family-500">for {item.for_recipe}</span></>}
                           {item.pantry_id && <> &middot; <span className="text-amber-500">{'\u{1F3E0}'} in {item.pantry_location} ({item.pantry_quantity})</span></>}
                         </p>
-                        {item.estimated_price && (
+                        {(item.estimated_price || item.last_price) && (
                           <p className="text-xs mt-0.5">
-                            <span className="text-emerald-600 font-medium">${item.estimated_price.toFixed(2)}</span>
-                            {item.walmart_url && (
+                            {item.estimated_price && (
+                              <span className="text-emerald-600 font-medium">${item.estimated_price.toFixed(2)}</span>
+                            )}
+                            {item.estimated_price && item.walmart_url && (
                               <a href={item.walmart_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-blue-500 hover:text-blue-600 ml-1.5 inline-flex items-center gap-0.5">
                                 <ExternalLink size={10} /> Walmart
                               </a>
+                            )}
+                            {item.last_price && (
+                              <span className={`${item.estimated_price ? 'ml-2' : ''} text-slate-500`}>
+                                Last: ${item.last_price.toFixed(2)} @ {item.last_store}
+                              </span>
                             )}
                           </p>
                         )}
